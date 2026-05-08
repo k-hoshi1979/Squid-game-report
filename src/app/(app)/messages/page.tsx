@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { MessageCard } from "@/components/messages/MessageCard";
 import { MessageComposer } from "@/components/messages/MessageComposer";
-import { createMessage, updateMessage, deleteMessage } from "./actions";
+import { createMessage } from "./actions";
 import type { MessageWithAuthor, MessageLog, MessageCategory } from "@/types/message";
 import { CATEGORY_CONFIG } from "@/types/message";
 
@@ -122,20 +122,14 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
           </div>
         ) : (
           <div className="space-y-3">
-            {messages.map((message) => {
-              const boundUpdate = updateMessage.bind(null, message.id);
-              const boundDelete = deleteMessage.bind(null, message.id);
-              return (
-                <MessageCard
-                  key={message.id}
-                  message={message}
-                  logs={logsMap.get(message.id) ?? []}
-                  currentUserId={user!.id}
-                  updateAction={boundUpdate}
-                  deleteAction={boundDelete}
-                />
-              );
-            })}
+            {messages.map((message) => (
+              <MessageCard
+                key={message.id}
+                message={message}
+                logs={logsMap.get(message.id) ?? []}
+                currentUserId={user!.id}
+              />
+            ))}
           </div>
         )}
       </main>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useEffect } from "react";
 import type { MessageWithAuthor, MessageLog, MessageCategory } from "@/types/message";
 import { CATEGORY_CONFIG } from "@/types/message";
+import { deleteMessage, updateMessage } from "@/app/(app)/messages/actions";
 
 // ─── URL を自動リンク化 ─────────────────────────────────────────
 
@@ -29,16 +30,23 @@ function LinkifiedText({ text }: { text: string }) {
   );
 }
 
-// ─── 日時フォーマット ───────────────────────────────────────────
+// ─── 日時フォーマット（クライアントのみ・ハイドレーション不一致を回避）─
 
-function fmtDateTime(iso: string) {
-  return new Intl.DateTimeFormat("ja-JP", {
-    year:   "numeric",
-    month:  "2-digit",
-    day:    "2-digit",
-    hour:   "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
+function ClientDate({ iso }: { iso: string }) {
+  const [label, setLabel] = useState("");
+  useEffect(() => {
+    setLabel(
+      new Intl.DateTimeFormat("ja-JP", {
+        year:     "numeric",
+        month:    "2-digit",
+        day:      "2-digit",
+        hour:     "2-digit",
+        minute:   "2-digit",
+        timeZone: "Asia/Tokyo",
+      }).format(new Date(iso))
+    );
+  }, [iso]);
+  return <span suppressHydrationWarning>{label}</span>;
 }
 
 const ACTION_LABEL: Record<string, string> = {
@@ -68,17 +76,9 @@ interface MessageCardProps {
   message:       MessageWithAuthor;
   logs:          MessageLog[];
   currentUserId: string;
-  updateAction:  (formData: FormData) => Promise<void>;
-  deleteAction:  () => Promise<void>;
 }
 
-export function MessageCard({
-  message,
-  logs,
-  currentUserId,
-  updateAction,
-  deleteAction,
-}: MessageCardProps) {
+export function MessageCard({ message, logs, currentUserId }: MessageCardProps) {
   const isOwner = currentUserId === message.user_id;
 
   const [isEditing,    setIsEditing]    = useState(false);
@@ -103,7 +103,7 @@ export function MessageCard({
     fd.set("content",  editContent);
     startUpdate(async () => {
       try {
-        await updateAction(fd);
+        await updateMessage(message.id, fd);
         setIsEditing(false);
       } catch (e) {
         setEditError(e instanceof Error ? e.message : "更新に失敗しました");
@@ -115,7 +115,7 @@ export function MessageCard({
     setDeleteError(null);
     startDelete(async () => {
       try {
-        await deleteAction();
+        await deleteMessage(message.id);
       } catch (e) {
         setDeleteError(e instanceof Error ? e.message : "削除に失敗しました");
         setShowDelete(false);
@@ -127,14 +127,13 @@ export function MessageCard({
     <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-sm overflow-hidden">
       {/* ─── ヘッダー ─── */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)] bg-[var(--muted)]/40">
-        {/* アバター */}
         <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
           {authorName.charAt(0).toUpperCase()}
         </div>
 
         <div className="flex-1 min-w-0 flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-[var(--foreground)]">{authorName}</span>
-          <span className="text-xs text-[var(--muted-foreground)]">{fmtDateTime(message.created_at)}</span>
+          <ClientDate iso={message.created_at} />
           {wasEdited && (
             <span className="text-xs text-[var(--muted-foreground)] italic">（編集済み）</span>
           )}
@@ -147,7 +146,6 @@ export function MessageCard({
       <div className="px-4 py-3">
         {isEditing ? (
           <div className="space-y-3">
-            {/* カテゴリ選択 */}
             <div className="flex flex-wrap gap-2">
               {CATEGORIES.map((cat) => {
                 const cfg = CATEGORY_CONFIG[cat];
@@ -168,7 +166,6 @@ export function MessageCard({
               })}
             </div>
 
-            {/* テキストエリア */}
             <textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
@@ -181,7 +178,6 @@ export function MessageCard({
               {editError && <p className="text-xs text-red-600">{editError}</p>}
             </div>
 
-            {/* 操作ボタン */}
             <div className="flex gap-2">
               <button
                 type="button"
@@ -210,7 +206,6 @@ export function MessageCard({
       {/* ─── フッター ─── */}
       {!isEditing && (
         <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--border)]/60">
-          {/* ログトグル */}
           <button
             type="button"
             onClick={() => setShowLogs((v) => !v)}
@@ -222,7 +217,6 @@ export function MessageCard({
             変更履歴 ({logs.length})
           </button>
 
-          {/* オーナー操作 */}
           {isOwner && (
             <div className="flex items-center gap-1">
               <button
@@ -274,7 +268,6 @@ export function MessageCard({
         </div>
       )}
 
-      {/* ─── 削除エラー ─── */}
       {deleteError && (
         <div className="px-4 pb-2">
           <p className="text-xs text-red-600">{deleteError}</p>
@@ -282,32 +275,31 @@ export function MessageCard({
       )}
 
       {/* ─── 変更履歴パネル ─── */}
-      {showLogs && logs.length > 0 && (
+      {showLogs && (
         <div className="border-t border-[var(--border)] bg-[var(--muted)]/30 px-4 py-3 space-y-2">
           <p className="text-xs font-bold text-[var(--muted-foreground)] uppercase tracking-wider mb-2">変更履歴</p>
-          {logs.map((log) => (
-            <div key={log.id} className="flex items-start gap-2 text-xs text-[var(--muted-foreground)]">
-              <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${
-                log.action === "created" ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400"
-                : log.action === "edited"  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
-                : "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400"
-              }`}>
-                {ACTION_LABEL[log.action]}
-              </span>
-              <span className="font-medium text-[var(--foreground)]">{log.user_name}</span>
-              <span>{fmtDateTime(log.performed_at)}</span>
-              {log.action === "edited" && log.content_snapshot && (
-                <span className="text-[var(--muted-foreground)] truncate max-w-[200px]" title={log.content_snapshot}>
-                  変更前: {log.content_snapshot.slice(0, 40)}{log.content_snapshot.length > 40 ? "…" : ""}
+          {logs.length === 0 ? (
+            <p className="text-xs text-[var(--muted-foreground)]">履歴はありません</p>
+          ) : (
+            logs.map((log) => (
+              <div key={log.id} className="flex items-start gap-2 text-xs text-[var(--muted-foreground)]">
+                <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${
+                  log.action === "created" ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+                  : log.action === "edited"  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+                  : "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400"
+                }`}>
+                  {ACTION_LABEL[log.action]}
                 </span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-      {showLogs && logs.length === 0 && (
-        <div className="border-t border-[var(--border)] bg-[var(--muted)]/30 px-4 py-3">
-          <p className="text-xs text-[var(--muted-foreground)]">履歴はありません</p>
+                <span className="font-medium text-[var(--foreground)]">{log.user_name}</span>
+                <ClientDate iso={log.performed_at} />
+                {log.action === "edited" && log.content_snapshot && (
+                  <span className="text-[var(--muted-foreground)] truncate max-w-[200px]" title={log.content_snapshot}>
+                    変更前: {log.content_snapshot.slice(0, 40)}{log.content_snapshot.length > 40 ? "…" : ""}
+                  </span>
+                )}
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>
