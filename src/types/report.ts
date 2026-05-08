@@ -42,8 +42,8 @@ export interface ReportData {
 
   /** リテール販売 */
   retail: {
-    salesTaxEx: number; // 物販売り上げ（税抜き・入力値）
-    salesTaxIn: number; // 税込 = 税抜 × 1.1
+    salesTaxEx: number; // 物販売り上げ（税抜・手入力）
+    salesTaxIn: number; // 物販売り上げ（税込・手入力）
     paymentCount: number;
   };
 

@@ -210,6 +210,7 @@ export function ReportNewForm({
   const vipPrevRef        = useRef<HTMLInputElement>(null);
   const vipTodayRef       = useRef<HTMLInputElement>(null);
   const retailSalesRef    = useRef<HTMLInputElement>(null);
+  const retailSalesTaxInRef = useRef<HTMLInputElement>(null);
   const payCountRef       = useRef<HTMLInputElement>(null);
   const ibGenWeekdayRef      = useRef<HTMLInputElement>(null);
   const ibGenHolidayRef      = useRef<HTMLInputElement>(null);
@@ -491,12 +492,12 @@ export function ReportNewForm({
       {/* ── ■リテール販売 ── */}
       <Card title="■ リテール販売">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <p className="text-xs text-[var(--muted-foreground)]">物販売り上げは税抜きで入力してください</p>
+          <p className="text-xs text-[var(--muted-foreground)]">物販売り上げ（税抜・税込）はそれぞれ手入力してください。</p>
           <OkButton onClick={confirmRetail} done={retail.done} />
         </div>
         <div className="space-y-2 pl-1">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-[var(--foreground)] w-28 shrink-0">物販売り上げ</span>
+            <span className="text-sm text-[var(--foreground)] w-40 shrink-0">物販売り上げ（税抜）</span>
             <div className="flex items-center gap-1.5">
               <span className="text-sm text-[var(--muted-foreground)]">¥</span>
               <input
@@ -507,7 +508,20 @@ export function ReportNewForm({
                 placeholder="0"
                 className="w-32 px-3 py-1.5 border border-[var(--border)] rounded-lg text-sm bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-right tabular-nums"
               />
-              <span className="text-xs text-[var(--muted-foreground)]">（税抜き）</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-[var(--foreground)] w-40 shrink-0">物販売り上げ（税込）</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm text-[var(--muted-foreground)]">¥</span>
+              <input
+                ref={retailSalesTaxInRef}
+                type="number"
+                min="0"
+                defaultValue={initialData?.retail.salesTaxIn ?? ""}
+                placeholder="0"
+                className="w-32 px-3 py-1.5 border border-[var(--border)] rounded-lg text-sm bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-right tabular-nums"
+              />
             </div>
           </div>
           <NumInput label="決済件数" inputRef={payCountRef} unit="件" defaultValue={initialData?.retail.paymentCount ?? ""} />
