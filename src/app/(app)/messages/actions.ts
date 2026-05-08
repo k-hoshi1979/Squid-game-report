@@ -2,7 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { MessageCategory } from "@/types/message";
+
+/** RLS と衝突しがちな更新・ログは Service Role で行う（本人確認済みのみ）。 */
+function getAdminOrThrowSupabaseFallback() {
+  try {
+    return createAdminClient();
+  } catch {
+    return null;
+  }
+}
 
 const VALID_CATEGORIES: MessageCategory[] = ["confirmation", "request", "notice", "other"];
 
@@ -70,7 +80,9 @@ export async function updateMessage(id: string, formData: FormData) {
 
   if (!original) throw new Error("メッセージが見つかりません");
 
-  const { error } = await supabase
+  const db = getAdminOrThrowSupabaseFallback() ?? supabase;
+
+  const { error } = await db
     .from("messages")
     .update({ category, content })
     .eq("id", id)
@@ -78,7 +90,7 @@ export async function updateMessage(id: string, formData: FormData) {
 
   if (error) throw new Error(error.message);
 
-  await supabase.from("message_logs").insert({
+  const { error: logErr } = await db.from("message_logs").insert({
     message_id:        id,
     user_id:           user.id,
     user_name:         userName,
@@ -86,6 +98,7 @@ export async function updateMessage(id: string, formData: FormData) {
     content_snapshot:  original.content, // 編集前の内容を記録
     category_snapshot: original.category,
   });
+  if (logErr) throw new Error(logErr.message);
 
   revalidatePath("/messages");
 }
@@ -103,8 +116,9 @@ export async function deleteMessage(id: string) {
 
   if (!message) throw new Error("メッセージが見つかりません");
 
-  // 削除ログを先に記録
-  await supabase.from("message_logs").insert({
+  const db = getAdminOrThrowSupabaseFallback() ?? supabase;
+
+  const { error: logErr } = await db.from("message_logs").insert({
     message_id:        id,
     user_id:           user.id,
     user_name:         userName,
@@ -112,13 +126,14 @@ export async function deleteMessage(id: string) {
     content_snapshot:  message.content,
     category_snapshot: message.category,
   });
+  if (logErr) throw new Error(logErr.message);
 
-  // ソフトデリート
-  await supabase
+  const { error: delErr } = await db
     .from("messages")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", id)
     .eq("user_id", user.id);
+  if (delErr) throw new Error(delErr.message);
 
   revalidatePath("/messages");
 }

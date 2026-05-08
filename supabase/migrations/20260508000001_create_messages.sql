@@ -59,9 +59,18 @@ CREATE POLICY "messages_select" ON messages
 CREATE POLICY "messages_insert" ON messages
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- messages：自分の投稿のみ更新可（soft-deleteも含む）
+-- messages：自分の投稿のみ更新可（ソフト削除後の行は WITH CHECK で許可）
 CREATE POLICY "messages_update_own" ON messages
-  FOR UPDATE USING (auth.uid() = user_id);
+  FOR UPDATE
+  USING (
+    auth.uid() IS NOT NULL
+    AND auth.uid() = user_id
+    AND deleted_at IS NULL
+  )
+  WITH CHECK (
+    auth.uid() IS NOT NULL
+    AND auth.uid() = user_id
+  );
 
 -- message_logs：認証済みユーザー全員が閲覧可
 CREATE POLICY "message_logs_select" ON message_logs
