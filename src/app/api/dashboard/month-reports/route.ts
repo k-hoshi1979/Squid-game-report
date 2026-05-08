@@ -8,18 +8,35 @@ export interface DashboardReportLite {
   content: string;
 }
 
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const monthParam = searchParams.get("month"); // YYYY-MM
+  const fromParam  = searchParams.get("from"); // YYYY-MM-DD inclusive
+  const toParam    = searchParams.get("to"); // YYYY-MM-DD inclusive
 
   const now = new Date();
-  const year = monthParam ? Number(monthParam.slice(0, 4)) : now.getFullYear();
-  const month = monthParam ? Number(monthParam.slice(5, 7)) : now.getMonth() + 1;
-
   const p2 = (n: number) => String(n).padStart(2, "0");
-  const start = `${year}-${p2(month)}-01`;
-  const lastDay = new Date(year, month, 0).getDate();
-  const end = `${year}-${p2(month)}-${p2(lastDay)}`;
+
+  let start: string;
+  let end: string;
+
+  if (
+    fromParam &&
+    toParam &&
+    ISO_DATE_RE.test(fromParam) &&
+    ISO_DATE_RE.test(toParam)
+  ) {
+    start = fromParam <= toParam ? fromParam : toParam;
+    end = fromParam <= toParam ? toParam : fromParam;
+  } else {
+    const year = monthParam ? Number(monthParam.slice(0, 4)) : now.getFullYear();
+    const month = monthParam ? Number(monthParam.slice(5, 7)) : now.getMonth() + 1;
+    start = `${year}-${p2(month)}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    end = `${year}-${p2(month)}-${p2(lastDay)}`;
+  }
 
   try {
     const supabase = await createClient();

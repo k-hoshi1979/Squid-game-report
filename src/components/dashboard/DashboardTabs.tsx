@@ -224,11 +224,9 @@ function getWeekRangesByMonday(monthKey: string): { week: number; start: string;
   while (cursor <= monthEnd) {
     const end = new Date(cursor);
     end.setDate(cursor.getDate() + 6);
-    const displayEnd = end > monthEnd ? monthEnd : end;
-
     const startStr = `${cursor.getFullYear()}-${p2(cursor.getMonth() + 1)}-${p2(cursor.getDate())}`;
     const endStr = `${end.getFullYear()}-${p2(end.getMonth() + 1)}-${p2(end.getDate())}`;
-    const label = `${week}週 (${p2(cursor.getMonth() + 1)}/${p2(cursor.getDate())}〜${p2(displayEnd.getMonth() + 1)}/${p2(displayEnd.getDate())})`;
+    const label = `${week}週 (${p2(cursor.getMonth() + 1)}/${p2(cursor.getDate())}〜${p2(end.getMonth() + 1)}/${p2(end.getDate())})`;
 
     ranges.push({ week, start: startStr, end: endStr, label });
     cursor.setDate(cursor.getDate() + 7);
@@ -277,6 +275,36 @@ function buildMetricSeries(reports: DashboardReportLite[]): MetricSeriesPoint[] 
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/** 週間タブ用: 月をまたぐ週でも常に7日分の系列（データなし日は0） */
+function buildMetricSeriesForDateRange(
+  reports: DashboardReportLite[],
+  rangeStart: string,
+  rangeEnd: string,
+): MetricSeriesPoint[] {
+  const byDate = new Map<string, MetricSeriesPoint>();
+  for (const p of buildMetricSeries(reports)) {
+    byDate.set(p.date, p);
+  }
+
+  const p2 = (n: number) => String(n).padStart(2, "0");
+  const empty = (): Omit<MetricSeriesPoint, "date"> => ({
+    ticketAmount: 0,
+    ticketCount: 0,
+    retailAmount: 0,
+    retailPayCount: 0,
+  });
+
+  const out: MetricSeriesPoint[] = [];
+  let cur = rangeStart;
+  while (cur <= rangeEnd) {
+    out.push(byDate.get(cur) ?? { date: cur, ...empty() });
+    const [y, m, d] = cur.split("-").map(Number);
+    const next = new Date(y, m - 1, d + 1);
+    cur = `${next.getFullYear()}-${p2(next.getMonth() + 1)}-${p2(next.getDate())}`;
+  }
+  return out;
+}
+
 function buildPieData(reports: DashboardReportLite[]): { receptionPie: PieSlice[]; ticketTypePie: PieSlice[] } {
   const receptionMap = new Map<string, number>();
   const ticketTypeMap = new Map<string, number>();
@@ -321,6 +349,20 @@ function buildPeriodData(reports: DashboardReportLite[]): PeriodData {
   };
 }
 
+function buildPeriodDataForRange(
+  reports: DashboardReportLite[],
+  rangeStart: string,
+  rangeEnd: string,
+): PeriodData {
+  const pie = buildPieData(reports);
+  return {
+    summary: aggregateReports(reports),
+    series: buildMetricSeriesForDateRange(reports, rangeStart, rangeEnd),
+    receptionPie: pie.receptionPie,
+    ticketTypePie: pie.ticketTypePie,
+  };
+}
+
 // ─── タブ定義 ─────────────────────────────────────────────
 
 type TabId = "monthly" | "weekly" | "daily";
@@ -345,6 +387,9 @@ export function DashboardTabs({
   const [selectedDate, setSelectedDate] = useState(`${initialKey}-01`);
   const [monthReports, setMonthReports] = useState<DashboardReportLite[]>(initialMonthReports);
   const [isLoading, setIsLoading] = useState(false);
+  /** 週間タブで月またぎを含む週単位・先週比較ぶんまとめて取得 */
+  const [weeklyRangeReports, setWeeklyRangeReports] = useState<DashboardReportLite[]>([]);
+  const [weeklyRangeLoading, setWeeklyRangeLoading] = useState(false);
 
   const safeMonthKey = isValidMonthKey(selectedMonth) ? selectedMonth : fallbackMonthKey;
   const weekRanges = useMemo(() => getWeekRangesByMonday(safeMonthKey), [safeMonthKey]);
@@ -370,6 +415,42 @@ export function DashboardTabs({
     run();
   }, [safeMonthKey]);
 
+  useEffect(() => {
+    if (activeTab !== "weekly") {
+      setWeeklyRangeReports([]);
+      return;
+    }
+    const rng = weekRanges.find((w) => w.week === selectedWeek);
+    if (!rng) return;
+    const prev = selectedWeek > 1 ? weekRanges.find((w) => w.week === selectedWeek - 1) : null;
+    let from = rng.start;
+    let to = rng.end;
+    if (prev) {
+      from = rng.start < prev.start ? rng.start : prev.start;
+      to = rng.end > prev.end ? rng.end : prev.end;
+    }
+
+    let cancelled = false;
+    const run = async () => {
+      setWeeklyRangeLoading(true);
+      try {
+        const q = `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+        const res = await fetch(`/api/dashboard/month-reports?${q}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) {
+          setWeeklyRangeReports((json.reports ?? []) as DashboardReportLite[]);
+        }
+      } finally {
+        if (!cancelled) setWeeklyRangeLoading(false);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, safeMonthKey, selectedWeek, weekRanges]);
+
   const monthDate = new Date(`${safeMonthKey}-01T00:00:00`);
   const monthLabelDynamic = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long" }).format(monthDate);
   const dayLabelDynamic = selectedDate;
@@ -377,8 +458,10 @@ export function DashboardTabs({
   const weeklyReports = useMemo(() => {
     const selectedRange = weekRanges.find((w) => w.week === selectedWeek);
     if (!selectedRange) return [];
-    return monthReports.filter((r) => r.report_date >= selectedRange.start && r.report_date <= selectedRange.end);
-  }, [monthReports, selectedWeek, weekRanges]);
+    return weeklyRangeReports.filter(
+      (r) => r.report_date >= selectedRange.start && r.report_date <= selectedRange.end,
+    );
+  }, [weeklyRangeReports, selectedWeek, weekRanges]);
 
   const dailyReports = useMemo(
     () => monthReports.filter((r) => r.report_date === selectedDate),
@@ -386,7 +469,11 @@ export function DashboardTabs({
   );
 
   const monthlyData = useMemo(() => buildPeriodData(monthReports), [monthReports]);
-  const weeklyData = useMemo(() => buildPeriodData(weeklyReports), [weeklyReports]);
+  const weeklyData = useMemo(() => {
+    const selectedRange = weekRanges.find((w) => w.week === selectedWeek);
+    if (!selectedRange) return buildPeriodData([]);
+    return buildPeriodDataForRange(weeklyReports, selectedRange.start, selectedRange.end);
+  }, [weeklyReports, selectedWeek, weekRanges]);
   const dailyData = useMemo(() => buildPeriodData(dailyReports), [dailyReports]);
 
   const current: PeriodData =
@@ -409,9 +496,11 @@ export function DashboardTabs({
     if (selectedWeek <= 1) return null;
     const prev = weekRanges.find((w) => w.week === selectedWeek - 1);
     if (!prev) return null;
-    const prevReports = monthReports.filter((r) => r.report_date >= prev.start && r.report_date <= prev.end);
-    return buildPeriodData(prevReports);
-  }, [monthReports, selectedWeek, weekRanges]);
+    const prevReports = weeklyRangeReports.filter(
+      (r) => r.report_date >= prev.start && r.report_date <= prev.end,
+    );
+    return buildPeriodDataForRange(prevReports, prev.start, prev.end);
+  }, [weeklyRangeReports, selectedWeek, weekRanges]);
 
   const showComparison = activeTab === "weekly" && !!prevWeekData;
 
@@ -519,7 +608,12 @@ export function DashboardTabs({
               />
             </label>
           )}
-          {isLoading && <span className="text-xs text-[var(--muted-foreground)]">読込中...</span>}
+          {isLoading && activeTab !== "weekly" && (
+            <span className="text-xs text-[var(--muted-foreground)]">読込中...</span>
+          )}
+          {activeTab === "weekly" && (isLoading || weeklyRangeLoading) && (
+            <span className="text-xs text-[var(--muted-foreground)]">読込中...</span>
+          )}
         </div>
         <h2 className="text-sm font-bold text-[var(--muted-foreground)] uppercase tracking-wider mb-3">
           {periodTitle[activeTab]}
