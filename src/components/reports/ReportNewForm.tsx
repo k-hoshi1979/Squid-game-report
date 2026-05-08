@@ -253,8 +253,9 @@ export function ReportNewForm({
 
   const confirmRetail = () => {
     const taxEx    = toNum(retailSalesRef.current?.value);
+    const taxIn    = toNum(retailSalesTaxInRef.current?.value);
     const payCount = toNum(payCountRef.current?.value);
-    setRetail({ taxEx, taxIn: taxEx * 1.1, payCount, done: true });
+    setRetail({ taxEx, taxIn, payCount, done: true });
   };
 
   const confirmIb = () => {
@@ -320,11 +321,18 @@ export function ReportNewForm({
   }), [date, reporter, csvData, tokuten, vip, ticketTotal, retail, ibTickets, operationNotes, irregularReport]);
 
   // ─── 送信ハンドラ（formなし・useTransition） ──────────
+  /** 入力欄が uncontrolled のため、保存直前は ref の現値で上書き（確定ボタンを押し忘れても反映される） */
   const handleSubmit = (submitAction: "draft" | "submit") => {
+    const retailPayload: ReportData["retail"] = {
+      salesTaxEx: toNum(retailSalesRef.current?.value),
+      salesTaxIn: toNum(retailSalesTaxInRef.current?.value),
+      paymentCount: toNum(payCountRef.current?.value),
+    };
+
     const fd = new FormData();
     fd.set("report_date", date);
     fd.set("title", `${date} 日報${reporter ? ` (${reporter})` : ""}`);
-    fd.set("content", JSON.stringify(reportData));
+    fd.set("content", JSON.stringify({ ...reportData, retail: retailPayload }));
     fd.set("action", submitAction);
     startTransition(async () => { await action(fd); });
   };
@@ -511,28 +519,36 @@ export function ReportNewForm({
         </div>
         <div className="space-y-2 pl-1">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-[var(--foreground)] w-40 shrink-0">物販売り上げ（税抜）</span>
+            <label htmlFor="retail_sales_tax_ex" className="text-sm text-[var(--foreground)] w-40 shrink-0">
+              物販売り上げ（税抜）
+            </label>
             <div className="flex items-center gap-1.5">
               <span className="text-sm text-[var(--muted-foreground)]">¥</span>
               <input
+                id="retail_sales_tax_ex"
+                name="retail_sales_tax_ex"
                 ref={retailSalesRef}
                 type="number"
                 min="0"
-                defaultValue={initialData?.retail.salesTaxEx ?? ""}
+                defaultValue={initialData?.retail?.salesTaxEx ?? ""}
                 placeholder="0"
                 className="w-32 px-3 py-1.5 border border-[var(--border)] rounded-lg text-sm bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-right tabular-nums"
               />
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-[var(--foreground)] w-40 shrink-0">物販売り上げ（税込）</span>
+            <label htmlFor="retail_sales_tax_in" className="text-sm text-[var(--foreground)] w-40 shrink-0">
+              物販売り上げ（税込）
+            </label>
             <div className="flex items-center gap-1.5">
               <span className="text-sm text-[var(--muted-foreground)]">¥</span>
               <input
+                id="retail_sales_tax_in"
+                name="retail_sales_tax_in"
                 ref={retailSalesTaxInRef}
                 type="number"
                 min="0"
-                defaultValue={initialData?.retail.salesTaxIn ?? ""}
+                defaultValue={initialData?.retail?.salesTaxIn ?? ""}
                 placeholder="0"
                 className="w-32 px-3 py-1.5 border border-[var(--border)] rounded-lg text-sm bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-right tabular-nums"
               />
