@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import type { MessageWithAuthor, MessageLog, MessageCategory } from "@/types/message";
 import { CATEGORY_CONFIG } from "@/types/message";
 import { deleteMessage, updateMessage } from "@/app/(app)/messages/actions";
@@ -81,6 +82,8 @@ interface MessageCardProps {
 export function MessageCard({ message, logs, currentUserId }: MessageCardProps) {
   const isOwner = currentUserId === message.user_id;
 
+  const router = useRouter();
+
   const [isEditing,    setIsEditing]    = useState(false);
   const [showLogs,     setShowLogs]     = useState(false);
   const [showDelete,   setShowDelete]   = useState(false);
@@ -88,39 +91,42 @@ export function MessageCard({ message, logs, currentUserId }: MessageCardProps) 
   const [editContent,  setEditContent]  = useState(message.content);
   const [editError,    setEditError]    = useState<string | null>(null);
   const [deleteError,  setDeleteError]  = useState<string | null>(null);
-
-  const [isUpdatePending, startUpdate] = useTransition();
-  const [isDeletePending, startDelete] = useTransition();
+  const [isUpdatePending, setIsUpdatePending] = useState(false);
+  const [isDeletePending, setIsDeletePending] = useState(false);
 
   const authorName = message.profiles?.full_name ?? message.profiles?.email ?? "不明";
   const wasEdited  = message.updated_at !== message.created_at;
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editContent.trim()) { setEditError("内容を入力してください"); return; }
     setEditError(null);
+    setIsUpdatePending(true);
     const fd = new FormData();
     fd.set("category", editCategory);
     fd.set("content",  editContent);
-    startUpdate(async () => {
-      try {
-        await updateMessage(message.id, fd);
-        setIsEditing(false);
-      } catch (e) {
-        setEditError(e instanceof Error ? e.message : "更新に失敗しました");
-      }
-    });
+    try {
+      await updateMessage(message.id, fd);
+      setIsEditing(false);
+      router.refresh();
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : "更新に失敗しました");
+    } finally {
+      setIsUpdatePending(false);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    if (isDeletePending) return;
     setDeleteError(null);
-    startDelete(async () => {
-      try {
-        await deleteMessage(message.id);
-      } catch (e) {
-        setDeleteError(e instanceof Error ? e.message : "削除に失敗しました");
-        setShowDelete(false);
-      }
-    });
+    setIsDeletePending(true);
+    try {
+      await deleteMessage(message.id);
+      router.refresh();
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "削除に失敗しました");
+      setShowDelete(false);
+      setIsDeletePending(false);
+    }
   };
 
   return (
