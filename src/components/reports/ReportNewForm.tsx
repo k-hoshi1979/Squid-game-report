@@ -3,7 +3,7 @@
 import { useRef, useState, useMemo, useTransition } from "react";
 import { CsvTicketImporter } from "./CsvTicketImporter";
 import type { CsvParseResult } from "@/lib/csv/parseTicketCsv";
-import type { ReportData } from "@/types/report";
+import { type ReportData, IB_UNIT_PRICE_BY_KEY, ibTicketsWithDefaults } from "@/types/report";
 
 /** ReportData.csv を CsvParseResult 互換の形式に変換する（旧データ groups なし対応）*/
 function reportCsvToParseResult(csv: NonNullable<ReportData["csv"]>): CsvParseResult {
@@ -21,14 +21,6 @@ function reportCsvToParseResult(csv: NonNullable<ReportData["csv"]>): CsvParseRe
 // ─── 固定単価 ────────────────────────────────────────────
 const TOKUTEN_PRICE = 14000;
 const VIP_PRICE     = 2000;
-const IB_PRICES = {
-  genWeekday:   4230,  // 3900 + 330
-  genHoliday:   4430,  // 4100 + 330
-  childWeekday: 3630,  // 3300 + 330
-  childHoliday: 3830,  // 3500 + 330
-  vip:          2330,  // 2000 + 330
-} as const;
-
 // ─── ユーティリティ ──────────────────────────────────────
 const toNum = (v?: string | null) =>
   parseInt((v ?? "").replace(/,/g, ""), 10) || 0;
@@ -51,8 +43,18 @@ interface TokutenState  { prev: number; today: number; sales: number; amount: nu
 interface VipState      { prev: number; today: number; sales: number; amount: number; done: boolean }
 interface RetailState   { taxEx: number; taxIn: number; payCount: number; done: boolean }
 interface IbState {
-  genWeekday: number; genHoliday: number; childWeekday: number;
-  childHoliday: number; vip: number; totalCount: number; totalAmount: number; done: boolean;
+  genWeekday: number;
+  genHoliday: number;
+  childWeekday: number;
+  childHoliday: number;
+  genVipWeekday: number;
+  genVipHoliday: number;
+  childVipWeekday: number;
+  childVipHoliday: number;
+  vip: number;
+  totalCount: number;
+  totalAmount: number;
+  done: boolean;
 }
 
 // ─── 小部品 ──────────────────────────────────────────────
@@ -142,6 +144,8 @@ export function ReportNewForm({
 }) {
   const [isPending, startTransition] = useTransition();
 
+  const initialIbRows = initialData ? ibTicketsWithDefaults(initialData.ibTickets) : null;
+
   // 基本情報
   const [date, setDate]         = useState(initialData?.date ?? todayStr());
   const [reporter, setReporter] = useState(initialData?.reporter ?? "");
@@ -171,15 +175,30 @@ export function ReportNewForm({
           payCount: initialData.retail.paymentCount, done: true }
       : { taxEx: 0, taxIn: 0, payCount: 0, done: false }
   );
-  const [ibTickets, setIbTickets] = useState<IbState>(
-    initialData
-      ? { genWeekday: initialData.ibTickets.genWeekday.count, genHoliday: initialData.ibTickets.genHoliday.count,
-          childWeekday: initialData.ibTickets.childWeekday.count, childHoliday: initialData.ibTickets.childHoliday.count,
-          vip: initialData.ibTickets.vip.count, totalCount: initialData.ibTickets.totalCount,
-          totalAmount: initialData.ibTickets.totalAmount, done: true }
-      : { genWeekday: 0, genHoliday: 0, childWeekday: 0, childHoliday: 0, vip: 0,
-          totalCount: 0, totalAmount: 0, done: false }
-  );
+  const [ibTickets, setIbTickets] = useState<IbState>(() => {
+    if (!initialData) {
+      return {
+        genWeekday: 0, genHoliday: 0, childWeekday: 0, childHoliday: 0,
+        genVipWeekday: 0, genVipHoliday: 0, childVipWeekday: 0, childVipHoliday: 0,
+        vip: 0, totalCount: 0, totalAmount: 0, done: false,
+      };
+    }
+    const ib = ibTicketsWithDefaults(initialData.ibTickets);
+    return {
+      genWeekday:      ib.genWeekday.count,
+      genHoliday:      ib.genHoliday.count,
+      childWeekday:    ib.childWeekday.count,
+      childHoliday:    ib.childHoliday.count,
+      genVipWeekday:   ib.genVipWeekday.count,
+      genVipHoliday:   ib.genVipHoliday.count,
+      childVipWeekday: ib.childVipWeekday.count,
+      childVipHoliday: ib.childVipHoliday.count,
+      vip:             ib.vip.count,
+      totalCount:      ib.totalCount,
+      totalAmount:     ib.totalAmount,
+      done:            true,
+    };
+  });
 
   // テキスト
   const [operationNotes,  setOperationNotes]  = useState(initialData?.operationNotes ?? "");
@@ -192,11 +211,15 @@ export function ReportNewForm({
   const vipTodayRef       = useRef<HTMLInputElement>(null);
   const retailSalesRef    = useRef<HTMLInputElement>(null);
   const payCountRef       = useRef<HTMLInputElement>(null);
-  const ibGenWeekdayRef   = useRef<HTMLInputElement>(null);
-  const ibGenHolidayRef   = useRef<HTMLInputElement>(null);
-  const ibChildWeekdayRef = useRef<HTMLInputElement>(null);
-  const ibChildHolidayRef = useRef<HTMLInputElement>(null);
-  const ibVipRef          = useRef<HTMLInputElement>(null);
+  const ibGenWeekdayRef      = useRef<HTMLInputElement>(null);
+  const ibGenHolidayRef      = useRef<HTMLInputElement>(null);
+  const ibChildWeekdayRef    = useRef<HTMLInputElement>(null);
+  const ibChildHolidayRef    = useRef<HTMLInputElement>(null);
+  const ibGenVipWeekdayRef   = useRef<HTMLInputElement>(null);
+  const ibGenVipHolidayRef   = useRef<HTMLInputElement>(null);
+  const ibChildVipWeekdayRef = useRef<HTMLInputElement>(null);
+  const ibChildVipHolidayRef = useRef<HTMLInputElement>(null);
+  const ibVipRef             = useRef<HTMLInputElement>(null);
 
   // ─── 確定ハンドラ ────────────────────────────────────
   const confirmTokuten = () => {
@@ -221,20 +244,30 @@ export function ReportNewForm({
 
   const confirmIb = () => {
     const c = {
-      genWeekday:   toNum(ibGenWeekdayRef.current?.value),
-      genHoliday:   toNum(ibGenHolidayRef.current?.value),
-      childWeekday: toNum(ibChildWeekdayRef.current?.value),
-      childHoliday: toNum(ibChildHolidayRef.current?.value),
-      vip:          toNum(ibVipRef.current?.value),
+      genWeekday:      toNum(ibGenWeekdayRef.current?.value),
+      genHoliday:      toNum(ibGenHolidayRef.current?.value),
+      childWeekday:    toNum(ibChildWeekdayRef.current?.value),
+      childHoliday:    toNum(ibChildHolidayRef.current?.value),
+      genVipWeekday:   toNum(ibGenVipWeekdayRef.current?.value),
+      genVipHoliday:   toNum(ibGenVipHolidayRef.current?.value),
+      childVipWeekday: toNum(ibChildVipWeekdayRef.current?.value),
+      childVipHoliday: toNum(ibChildVipHolidayRef.current?.value),
+      vip:             toNum(ibVipRef.current?.value),
     };
+    const P = IB_UNIT_PRICE_BY_KEY;
     const totalCount =
-      c.genWeekday + c.genHoliday + c.childWeekday + c.childHoliday + c.vip;
+      c.genWeekday + c.genHoliday + c.childWeekday + c.childHoliday +
+      c.genVipWeekday + c.genVipHoliday + c.childVipWeekday + c.childVipHoliday + c.vip;
     const totalAmount =
-      c.genWeekday   * IB_PRICES.genWeekday   +
-      c.genHoliday   * IB_PRICES.genHoliday   +
-      c.childWeekday * IB_PRICES.childWeekday  +
-      c.childHoliday * IB_PRICES.childHoliday  +
-      c.vip          * IB_PRICES.vip;
+      c.genWeekday      * P.genWeekday      +
+      c.genHoliday      * P.genHoliday      +
+      c.childWeekday    * P.childWeekday    +
+      c.childHoliday    * P.childHoliday    +
+      c.genVipWeekday   * P.genVipWeekday   +
+      c.genVipHoliday   * P.genVipHoliday   +
+      c.childVipWeekday * P.childVipWeekday +
+      c.childVipHoliday * P.childVipHoliday +
+      c.vip             * P.vip;
     setIbTickets({ ...c, totalCount, totalAmount, done: true });
   };
 
@@ -257,11 +290,15 @@ export function ReportNewForm({
     ticketTotal,
     retail: { salesTaxEx: retail.taxEx, salesTaxIn: retail.taxIn, paymentCount: retail.payCount },
     ibTickets: {
-      genWeekday:   { count: ibTickets.genWeekday,   unitPrice: IB_PRICES.genWeekday,   amount: ibTickets.genWeekday   * IB_PRICES.genWeekday },
-      genHoliday:   { count: ibTickets.genHoliday,   unitPrice: IB_PRICES.genHoliday,   amount: ibTickets.genHoliday   * IB_PRICES.genHoliday },
-      childWeekday: { count: ibTickets.childWeekday, unitPrice: IB_PRICES.childWeekday, amount: ibTickets.childWeekday * IB_PRICES.childWeekday },
-      childHoliday: { count: ibTickets.childHoliday, unitPrice: IB_PRICES.childHoliday, amount: ibTickets.childHoliday * IB_PRICES.childHoliday },
-      vip:          { count: ibTickets.vip,           unitPrice: IB_PRICES.vip,          amount: ibTickets.vip          * IB_PRICES.vip },
+      genWeekday:   { count: ibTickets.genWeekday,      unitPrice: IB_UNIT_PRICE_BY_KEY.genWeekday,      amount: ibTickets.genWeekday      * IB_UNIT_PRICE_BY_KEY.genWeekday },
+      genHoliday:   { count: ibTickets.genHoliday,      unitPrice: IB_UNIT_PRICE_BY_KEY.genHoliday,      amount: ibTickets.genHoliday      * IB_UNIT_PRICE_BY_KEY.genHoliday },
+      childWeekday: { count: ibTickets.childWeekday,    unitPrice: IB_UNIT_PRICE_BY_KEY.childWeekday,    amount: ibTickets.childWeekday    * IB_UNIT_PRICE_BY_KEY.childWeekday },
+      childHoliday: { count: ibTickets.childHoliday,    unitPrice: IB_UNIT_PRICE_BY_KEY.childHoliday,    amount: ibTickets.childHoliday    * IB_UNIT_PRICE_BY_KEY.childHoliday },
+      genVipWeekday:   { count: ibTickets.genVipWeekday,   unitPrice: IB_UNIT_PRICE_BY_KEY.genVipWeekday,   amount: ibTickets.genVipWeekday   * IB_UNIT_PRICE_BY_KEY.genVipWeekday },
+      genVipHoliday:   { count: ibTickets.genVipHoliday,   unitPrice: IB_UNIT_PRICE_BY_KEY.genVipHoliday,   amount: ibTickets.genVipHoliday   * IB_UNIT_PRICE_BY_KEY.genVipHoliday },
+      childVipWeekday: { count: ibTickets.childVipWeekday, unitPrice: IB_UNIT_PRICE_BY_KEY.childVipWeekday, amount: ibTickets.childVipWeekday * IB_UNIT_PRICE_BY_KEY.childVipWeekday },
+      childVipHoliday: { count: ibTickets.childVipHoliday, unitPrice: IB_UNIT_PRICE_BY_KEY.childVipHoliday, amount: ibTickets.childVipHoliday * IB_UNIT_PRICE_BY_KEY.childVipHoliday },
+      vip:          { count: ibTickets.vip,             unitPrice: IB_UNIT_PRICE_BY_KEY.vip,             amount: ibTickets.vip             * IB_UNIT_PRICE_BY_KEY.vip },
       totalCount: ibTickets.totalCount, totalAmount: ibTickets.totalAmount,
     },
     operationNotes, irregularReport,
@@ -492,14 +529,18 @@ export function ReportNewForm({
         </div>
         <div className="space-y-2 pl-1">
           {([
-            ["一般（平日）",   ibGenWeekdayRef,   IB_PRICES.genWeekday,   initialData?.ibTickets.genWeekday.count],
-            ["一般（休日）",   ibGenHolidayRef,   IB_PRICES.genHoliday,   initialData?.ibTickets.genHoliday.count],
-            ["こども（平日）", ibChildWeekdayRef, IB_PRICES.childWeekday, initialData?.ibTickets.childWeekday.count],
-            ["こども（休日）", ibChildHolidayRef, IB_PRICES.childHoliday, initialData?.ibTickets.childHoliday.count],
-            ["貸切VIP",         ibVipRef,          IB_PRICES.vip,          initialData?.ibTickets.vip.count],
+            ["一般（平日）",     ibGenWeekdayRef,      IB_UNIT_PRICE_BY_KEY.genWeekday,      initialIbRows?.genWeekday.count],
+            ["一般（休日）",     ibGenHolidayRef,      IB_UNIT_PRICE_BY_KEY.genHoliday,      initialIbRows?.genHoliday.count],
+            ["こども（平日）",   ibChildWeekdayRef,    IB_UNIT_PRICE_BY_KEY.childWeekday,    initialIbRows?.childWeekday.count],
+            ["こども（休日）",   ibChildHolidayRef,    IB_UNIT_PRICE_BY_KEY.childHoliday,    initialIbRows?.childHoliday.count],
+            ["一般VIP（平日）",  ibGenVipWeekdayRef,   IB_UNIT_PRICE_BY_KEY.genVipWeekday,   initialIbRows?.genVipWeekday.count],
+            ["一般VIP（休日）",  ibGenVipHolidayRef,   IB_UNIT_PRICE_BY_KEY.genVipHoliday,   initialIbRows?.genVipHoliday.count],
+            ["こどもVIP（平日）", ibChildVipWeekdayRef, IB_UNIT_PRICE_BY_KEY.childVipWeekday, initialIbRows?.childVipWeekday.count],
+            ["こどもVIP（休日）", ibChildVipHolidayRef, IB_UNIT_PRICE_BY_KEY.childVipHoliday, initialIbRows?.childVipHoliday.count],
+            ["貸切VIP",          ibVipRef,             IB_UNIT_PRICE_BY_KEY.vip,             initialIbRows?.vip.count],
           ] as [string, React.RefObject<HTMLInputElement | null>, number, number | undefined][]).map(([label, ref, price, defVal]) => (
             <div key={label} className="flex items-center gap-3">
-              <span className="text-sm text-[var(--foreground)] w-28 shrink-0">{label}</span>
+              <span className="text-sm text-[var(--foreground)] w-36 shrink-0">{label}</span>
               <div className="flex items-center gap-1.5">
                 <input
                   ref={ref}
@@ -516,11 +557,15 @@ export function ReportNewForm({
         </div>
         {ibTickets.done && (
           <ResultBox rows={[
-            { label: "一般（平日）",   value: `${fmt(ibTickets.genWeekday)}枚  ¥${fmt(ibTickets.genWeekday   * IB_PRICES.genWeekday)}` },
-            { label: "一般（休日）",   value: `${fmt(ibTickets.genHoliday)}枚  ¥${fmt(ibTickets.genHoliday   * IB_PRICES.genHoliday)}` },
-            { label: "こども（平日）", value: `${fmt(ibTickets.childWeekday)}枚  ¥${fmt(ibTickets.childWeekday * IB_PRICES.childWeekday)}` },
-            { label: "こども（休日）", value: `${fmt(ibTickets.childHoliday)}枚  ¥${fmt(ibTickets.childHoliday * IB_PRICES.childHoliday)}` },
-            { label: "貸切VIP",         value: `${fmt(ibTickets.vip)}枚  ¥${fmt(ibTickets.vip           * IB_PRICES.vip)}` },
+            { label: "一般（平日）",       value: `${fmt(ibTickets.genWeekday)}枚  ¥${fmt(ibTickets.genWeekday      * IB_UNIT_PRICE_BY_KEY.genWeekday)}` },
+            { label: "一般（休日）",       value: `${fmt(ibTickets.genHoliday)}枚  ¥${fmt(ibTickets.genHoliday      * IB_UNIT_PRICE_BY_KEY.genHoliday)}` },
+            { label: "こども（平日）",     value: `${fmt(ibTickets.childWeekday)}枚  ¥${fmt(ibTickets.childWeekday    * IB_UNIT_PRICE_BY_KEY.childWeekday)}` },
+            { label: "こども（休日）",     value: `${fmt(ibTickets.childHoliday)}枚  ¥${fmt(ibTickets.childHoliday    * IB_UNIT_PRICE_BY_KEY.childHoliday)}` },
+            { label: "一般VIP（平日）",    value: `${fmt(ibTickets.genVipWeekday)}枚  ¥${fmt(ibTickets.genVipWeekday   * IB_UNIT_PRICE_BY_KEY.genVipWeekday)}` },
+            { label: "一般VIP（休日）",    value: `${fmt(ibTickets.genVipHoliday)}枚  ¥${fmt(ibTickets.genVipHoliday   * IB_UNIT_PRICE_BY_KEY.genVipHoliday)}` },
+            { label: "こどもVIP（平日）",  value: `${fmt(ibTickets.childVipWeekday)}枚  ¥${fmt(ibTickets.childVipWeekday * IB_UNIT_PRICE_BY_KEY.childVipWeekday)}` },
+            { label: "こどもVIP（休日）",  value: `${fmt(ibTickets.childVipHoliday)}枚  ¥${fmt(ibTickets.childVipHoliday * IB_UNIT_PRICE_BY_KEY.childVipHoliday)}` },
+            { label: "貸切VIP",            value: `${fmt(ibTickets.vip)}枚  ¥${fmt(ibTickets.vip             * IB_UNIT_PRICE_BY_KEY.vip)}` },
             { label: "IB合計", value: `${fmt(ibTickets.totalCount)}枚 / ¥${fmt(ibTickets.totalAmount)}`, highlight: true },
           ]} />
         )}
@@ -653,13 +698,23 @@ function ReportPreview({ data }: { data: ReportData }) {
       </PBlock>
 
       <PBlock title="■ IB対応チケット">
-        {([ ["一般（平日）", data.ibTickets.genWeekday], ["一般（休日）", data.ibTickets.genHoliday],
-            ["こども（平日）", data.ibTickets.childWeekday], ["こども（休日）", data.ibTickets.childHoliday],
-            ["貸切VIP", data.ibTickets.vip],
+        {(() => {
+          const ib = ibTicketsWithDefaults(data.ibTickets);
+          return ([
+            ["一般（平日）",       ib.genWeekday],
+            ["一般（休日）",       ib.genHoliday],
+            ["こども（平日）",     ib.childWeekday],
+            ["こども（休日）",     ib.childHoliday],
+            ["一般VIP（平日）",    ib.genVipWeekday],
+            ["一般VIP（休日）",    ib.genVipHoliday],
+            ["こどもVIP（平日）",  ib.childVipWeekday],
+            ["こどもVIP（休日）",  ib.childVipHoliday],
+            ["貸切VIP",            ib.vip],
           ] as [string, { count: number; unitPrice: number; amount: number }][])
-          .map(([label, r]) => (
-            <PRow key={label} label={`${label}（×¥${fmt(r.unitPrice)}）`} value={`${fmt(r.count)}枚`} sub={`¥${fmt(r.amount)}`} />
-          ))}
+            .map(([label, r]) => (
+              <PRow key={label} label={`${label}（×¥${fmt(r.unitPrice)}）`} value={`${fmt(r.count)}枚`} sub={`¥${fmt(r.amount)}`} />
+            ));
+        })()}
         <PRow label="IB合計" value={`${fmt(data.ibTickets.totalCount)}枚`} sub={`¥${fmt(data.ibTickets.totalAmount)}`} bold />
       </PBlock>
 

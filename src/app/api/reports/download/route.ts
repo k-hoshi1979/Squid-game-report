@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { parseReportContent } from "@/types/report";
+import { parseReportContent, ibTicketsWithDefaults } from "@/types/report";
 import type { DailyReport } from "@/types/database";
 
 // ─── 日付ユーティリティ ───────────────────────────────────
@@ -90,6 +90,14 @@ function generateCsv(reports: DailyReport[]): string {
     "IB_こども（平日）金額",
     "IB_こども（休日）枚数",
     "IB_こども（休日）金額",
+    "IB_一般VIP（平日）枚数",
+    "IB_一般VIP（平日）金額",
+    "IB_一般VIP（休日）枚数",
+    "IB_一般VIP（休日）金額",
+    "IB_こどもVIP（平日）枚数",
+    "IB_こどもVIP（平日）金額",
+    "IB_こどもVIP（休日）枚数",
+    "IB_こどもVIP（休日）金額",
     "IB_貸切VIP枚数",
     "IB_貸切VIP金額",
     "IB_合計枚数",
@@ -109,7 +117,8 @@ function generateCsv(reports: DailyReport[]): string {
     const tok = d?.tokuten;
     const vip = d?.kashikiriVip;
     const ret = d?.retail;
-    const ib  = d?.ibTickets;
+    const ibRaw = d?.ibTickets;
+    const ib      = ibRaw ? ibTicketsWithDefaults(ibRaw) : null;
     const csv = d?.csv;
     const tt  = d?.ticketTotal;
 
@@ -146,10 +155,18 @@ function generateCsv(reports: DailyReport[]): string {
       ib?.childWeekday.amount ?? "",
       ib?.childHoliday.count  ?? "",
       ib?.childHoliday.amount ?? "",
+      ib?.genVipWeekday.count   ?? "",
+      ib?.genVipWeekday.amount  ?? "",
+      ib?.genVipHoliday.count   ?? "",
+      ib?.genVipHoliday.amount  ?? "",
+      ib?.childVipWeekday.count  ?? "",
+      ib?.childVipWeekday.amount ?? "",
+      ib?.childVipHoliday.count  ?? "",
+      ib?.childVipHoliday.amount ?? "",
       ib?.vip.count  ?? "",
       ib?.vip.amount ?? "",
-      ib?.totalCount  ?? "",
-      ib?.totalAmount ?? "",
+      ibRaw?.totalCount  ?? "",
+      ibRaw?.totalAmount ?? "",
       // CSV
       csv?.eventName   ?? "",
       csv?.venue        ?? "",

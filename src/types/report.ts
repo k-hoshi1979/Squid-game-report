@@ -53,6 +53,10 @@ export interface ReportData {
     genHoliday:   IbTicketRow; // 一般（休日）  ¥4,430
     childWeekday: IbTicketRow; // こども（平日）¥3,630
     childHoliday: IbTicketRow; // こども（休日）¥3,830
+    genVipWeekday:   IbTicketRow; // 一般VIP（平日）  ¥6,230
+    genVipHoliday:   IbTicketRow; // 一般VIP（休日）  ¥6,430
+    childVipWeekday: IbTicketRow; // こどもVIP（平日）¥5,630
+    childVipHoliday: IbTicketRow; // こどもVIP（休日）¥5,830
     vip:          IbTicketRow; // 貸切VIP       ¥2,330
     totalCount: number;
     totalAmount: number;
@@ -81,6 +85,57 @@ export interface IbTicketRow {
   count: number;
   unitPrice: number;
   amount: number;
+}
+
+/** IB対応チケットの固定単価（入力・再計算・旧データ補完で共通） */
+export const IB_UNIT_PRICE_BY_KEY = {
+  genWeekday:   4230,
+  genHoliday:   4430,
+  childWeekday: 3630,
+  childHoliday: 3830,
+  genVipWeekday:   6230,
+  genVipHoliday:   6430,
+  childVipWeekday: 5630,
+  childVipHoliday: 5830,
+  vip:          2330,
+} as const;
+
+export type IbTicketPriceKey = keyof typeof IB_UNIT_PRICE_BY_KEY;
+
+/** 旧日報JSON（4券種追加前）にも対応して ibTickets を埋める */
+export function ibTicketsWithDefaults(
+  ib: Partial<ReportData["ibTickets"]> | undefined | null,
+): ReportData["ibTickets"] {
+  const z = (price: number): IbTicketRow => ({ count: 0, unitPrice: price, amount: 0 });
+  const P = IB_UNIT_PRICE_BY_KEY;
+  if (!ib) {
+    return {
+      genWeekday:      z(P.genWeekday),
+      genHoliday:      z(P.genHoliday),
+      childWeekday:    z(P.childWeekday),
+      childHoliday:    z(P.childHoliday),
+      genVipWeekday:   z(P.genVipWeekday),
+      genVipHoliday:   z(P.genVipHoliday),
+      childVipWeekday: z(P.childVipWeekday),
+      childVipHoliday: z(P.childVipHoliday),
+      vip:             z(P.vip),
+      totalCount:      0,
+      totalAmount:     0,
+    };
+  }
+  return {
+    genWeekday:      ib.genWeekday      ?? z(P.genWeekday),
+    genHoliday:      ib.genHoliday      ?? z(P.genHoliday),
+    childWeekday:    ib.childWeekday    ?? z(P.childWeekday),
+    childHoliday:    ib.childHoliday    ?? z(P.childHoliday),
+    genVipWeekday:   ib.genVipWeekday   ?? z(P.genVipWeekday),
+    genVipHoliday:   ib.genVipHoliday   ?? z(P.genVipHoliday),
+    childVipWeekday: ib.childVipWeekday ?? z(P.childVipWeekday),
+    childVipHoliday: ib.childVipHoliday ?? z(P.childVipHoliday),
+    vip:             ib.vip             ?? z(P.vip),
+    totalCount:      ib.totalCount      ?? 0,
+    totalAmount:     ib.totalAmount     ?? 0,
+  };
 }
 
 /** content フィールドから ReportData を安全にパースする */

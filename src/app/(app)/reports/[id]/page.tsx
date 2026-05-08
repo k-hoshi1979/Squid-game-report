@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { ReportStatusBadge } from "@/components/dashboard/ReportStatusBadge";
-import { parseReportContent } from "@/types/report";
+import { parseReportContent, ibTicketsWithDefaults } from "@/types/report";
 import type { ReportData } from "@/types/report";
 import { DeleteReportButton } from "@/components/reports/DeleteReportButton";
 import { ConfirmReportButton } from "@/components/reports/ConfirmReportButton";
@@ -58,6 +58,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 // ─── 構造化レポートのレンダリング ─────────────────────
 
 function StructuredReport({ data }: { data: ReportData }) {
+  const ib = ibTicketsWithDefaults(data.ibTickets);
   return (
     <div className="space-y-4">
       {/* ■チケット売上 */}
@@ -124,11 +125,15 @@ function StructuredReport({ data }: { data: ReportData }) {
       <Card title="■ IB対応チケット">
         {(
           [
-            ["一般（平日）",   data.ibTickets.genWeekday],
-            ["一般（休日）",   data.ibTickets.genHoliday],
-            ["こども（平日）", data.ibTickets.childWeekday],
-            ["こども（休日）", data.ibTickets.childHoliday],
-            ["貸切VIP",         data.ibTickets.vip],
+            ["一般（平日）",       ib.genWeekday],
+            ["一般（休日）",       ib.genHoliday],
+            ["こども（平日）",     ib.childWeekday],
+            ["こども（休日）",     ib.childHoliday],
+            ["一般VIP（平日）",    ib.genVipWeekday],
+            ["一般VIP（休日）",    ib.genVipHoliday],
+            ["こどもVIP（平日）",  ib.childVipWeekday],
+            ["こどもVIP（休日）",  ib.childVipHoliday],
+            ["貸切VIP",            ib.vip],
           ] as [string, { count: number; unitPrice: number; amount: number }][]
         ).map(([label, row]) => (
           <Row
