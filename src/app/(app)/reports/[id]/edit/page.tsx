@@ -4,7 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { ReportNewForm } from "@/components/reports/ReportNewForm";
-import { parseReportContent } from "@/types/report";
+import { parseReportContent, sanitizeReportForForm } from "@/types/report";
+import type { ReportStatus } from "@/types/database";
 import { updateReport } from "./actions";
 
 interface Props {
@@ -36,9 +37,15 @@ export default async function ReportEditPage({ params, searchParams }: Props) {
     redirect(`/reports/${id}`);
   }
 
+  const reportStatus = report.status;
+
   const structured = parseReportContent(report.content);
-  // currentStatus を bind で渡す
-  const updateReportWithId = updateReport.bind(null, id, report.status);
+  const editInitialData = structured ? sanitizeReportForForm(structured) : undefined;
+
+  async function submitEditedReport(formData: FormData) {
+    "use server";
+    await updateReport(id, reportStatus as ReportStatus, formData);
+  }
 
   return (
     <>
@@ -59,9 +66,9 @@ export default async function ReportEditPage({ params, searchParams }: Props) {
       <main className="flex-1 p-3 sm:p-6">
         <div className="max-w-2xl mx-auto">
           <ReportNewForm
-            action={updateReportWithId}
+            action={submitEditedReport}
             error={error ? decodeURIComponent(error) : undefined}
-            initialData={structured ?? undefined}
+            initialData={editInitialData}
             isEdit
           />
         </div>

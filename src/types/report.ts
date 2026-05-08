@@ -148,3 +148,49 @@ export function parseReportContent(content: string): ReportData | null {
     return null;
   }
 }
+
+function coerceNum(n: unknown, fallback = 0): number {
+  const x = Number(n);
+  return Number.isFinite(x) ? x : fallback;
+}
+
+/**
+ * 編集フォーム用。欠損・旧形式フィールドでも落ちずに入力初期値へ埋める。
+ */
+export function sanitizeReportForForm(raw: ReportData): ReportData {
+  const t = raw.tokuten;
+  const kv = raw.kashikiriVip;
+  const tt = raw.ticketTotal;
+  const r = raw.retail;
+  return {
+    ...raw,
+    reporter: typeof raw.reporter === "string" ? raw.reporter : "",
+    operationNotes: typeof raw.operationNotes === "string" ? raw.operationNotes : "",
+    irregularReport: typeof raw.irregularReport === "string" ? raw.irregularReport : "",
+    tokuten: {
+      prevRemaining: coerceNum(t?.prevRemaining),
+      todayRemaining: coerceNum(t?.todayRemaining),
+      salesCount: coerceNum(t?.salesCount),
+      unitPrice: coerceNum(t?.unitPrice, 14_000) || 14_000,
+      amount: coerceNum(t?.amount),
+    },
+    kashikiriVip: {
+      prevTotal: coerceNum(kv?.prevTotal),
+      todayTotal: coerceNum(kv?.todayTotal),
+      salesCount: coerceNum(kv?.salesCount),
+      unitPrice: coerceNum(kv?.unitPrice, 2_000) || 2_000,
+      amount: coerceNum(kv?.amount),
+    },
+    ticketTotal: {
+      count: coerceNum(tt?.count),
+      amountTaxIn: coerceNum(tt?.amountTaxIn),
+      amountTaxEx: coerceNum(tt?.amountTaxEx),
+    },
+    retail: {
+      salesTaxEx: coerceNum(r?.salesTaxEx),
+      salesTaxIn: coerceNum(r?.salesTaxIn),
+      paymentCount: coerceNum(r?.paymentCount),
+    },
+    ibTickets: ibTicketsWithDefaults(raw.ibTickets),
+  };
+}

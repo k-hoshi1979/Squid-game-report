@@ -159,20 +159,34 @@ export function ReportNewForm({
   // 確定済み状態（編集時は初期値をセット）
   const [tokuten, setTokuten] = useState<TokutenState>(
     initialData
-      ? { prev: initialData.tokuten.prevRemaining, today: initialData.tokuten.todayRemaining,
-          sales: initialData.tokuten.salesCount, amount: initialData.tokuten.amount, done: true }
+      ? {
+          prev:   initialData.tokuten?.prevRemaining   ?? 0,
+          today:  initialData.tokuten?.todayRemaining ?? 0,
+          sales:  initialData.tokuten?.salesCount     ?? 0,
+          amount: initialData.tokuten?.amount         ?? 0,
+          done:   true,
+        }
       : { prev: 0, today: 0, sales: 0, amount: 0, done: false }
   );
   const [vip, setVip] = useState<VipState>(
     initialData
-      ? { prev: initialData.kashikiriVip.prevTotal, today: initialData.kashikiriVip.todayTotal,
-          sales: initialData.kashikiriVip.salesCount, amount: initialData.kashikiriVip.amount, done: true }
+      ? {
+          prev:   initialData.kashikiriVip?.prevTotal    ?? 0,
+          today:  initialData.kashikiriVip?.todayTotal  ?? 0,
+          sales:  initialData.kashikiriVip?.salesCount   ?? 0,
+          amount: initialData.kashikiriVip?.amount       ?? 0,
+          done:   true,
+        }
       : { prev: 0, today: 0, sales: 0, amount: 0, done: false }
   );
   const [retail, setRetail] = useState<RetailState>(
     initialData
-      ? { taxEx: initialData.retail.salesTaxEx, taxIn: initialData.retail.salesTaxIn,
-          payCount: initialData.retail.paymentCount, done: true }
+      ? {
+          taxEx:    initialData.retail?.salesTaxEx    ?? 0,
+          taxIn:    initialData.retail?.salesTaxIn    ?? 0,
+          payCount: initialData.retail?.paymentCount ?? 0,
+          done: true,
+        }
       : { taxEx: 0, taxIn: 0, payCount: 0, done: false }
   );
   const [ibTickets, setIbTickets] = useState<IbState>(() => {
