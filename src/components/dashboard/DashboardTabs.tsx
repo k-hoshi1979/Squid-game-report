@@ -73,6 +73,9 @@ export interface DashboardTabsProps {
 const fmt  = (n: number) => new Intl.NumberFormat("ja-JP").format(Math.round(n));
 const fmtY = (n: number) => `¥${fmt(n)}`;
 
+/** チケット総売上・販売数の集計対象を示す注釈（日報の ticketTotal 定義と一致） */
+const TICKET_METRIC_NOTE = "CSV数値＋特典＋貸切VIP";
+
 // ─── 差分バッジ ───────────────────────────────────────────
 
 function DiffBadge({ current, prev }: { current: number; prev: number }) {
@@ -107,9 +110,20 @@ interface SummaryCardProps {
   selected?: boolean;
   onClick?: () => void;
   compRow?: React.ReactNode;
+  /** 主要指標直下のさらに小さい説明文 */
+  annotation?: string;
 }
 
-function SummaryCard({ label, value, subLabel, color, selected = false, onClick, compRow }: SummaryCardProps) {
+function SummaryCard({
+  label,
+  value,
+  subLabel,
+  color,
+  selected = false,
+  onClick,
+  compRow,
+  annotation,
+}: SummaryCardProps) {
   return (
     <button
       type="button"
@@ -130,6 +144,11 @@ function SummaryCard({ label, value, subLabel, color, selected = false, onClick,
           </div>
         )}
         <p className="text-xs text-[var(--muted-foreground)] mt-0.5">{subLabel}</p>
+        {annotation && (
+          <p className="text-[11px] text-[var(--muted-foreground)] mt-1.5 leading-snug opacity-90">
+            {annotation}
+          </p>
+        )}
       </div>
     </button>
   );
@@ -157,6 +176,12 @@ function MetricBarChart({
   const meta = METRICS.find((m) => m.key === metric)!;
   const values = points.map((p) => p[metric]);
   const max = Math.max(...values, 0);
+  const ticketNote =
+    metric === "ticketAmount" || metric === "ticketCount" ? (
+      <p className="text-[11px] text-[var(--muted-foreground)] mt-0.5 mb-3 leading-snug opacity-90">
+        {TICKET_METRIC_NOTE}
+      </p>
+    ) : null;
 
   if (points.length === 0) {
     return (
@@ -176,7 +201,8 @@ function MetricBarChart({
     return (
       <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-5 shadow-sm">
         <h3 className="text-sm font-bold text-[var(--foreground)] mb-1">{title}</h3>
-        <p className="text-xs text-[var(--muted-foreground)] mb-3">{meta.label}</p>
+        <p className={`text-xs text-[var(--muted-foreground)] ${ticketNote ? "mb-1" : "mb-3"}`}>{meta.label}</p>
+        {ticketNote}
         <div className="h-60 border border-[var(--border)] rounded-lg p-3 overflow-x-auto overflow-y-hidden">
           <div className="h-full min-w-[560px] flex items-end gap-1.5">
             {points.map((p, i) => {
@@ -207,7 +233,8 @@ function MetricBarChart({
   return (
     <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-5 shadow-sm">
       <h3 className="text-sm font-bold text-[var(--foreground)] mb-1">{title}</h3>
-      <p className="text-xs text-[var(--muted-foreground)] mb-4">{meta.label}</p>
+      <p className={`text-xs text-[var(--muted-foreground)] ${ticketNote ? "mb-1" : "mb-4"}`}>{meta.label}</p>
+      {ticketNote}
       <div className="space-y-2.5">
         {points.map((p) => {
           const value = p[metric];
@@ -658,6 +685,7 @@ export function DashboardTabs({
             label="チケット総売り上げ（税込）"
             value={fmtY(current.summary.ticketAmount)}
             subLabel={sub.ticket}
+            annotation={TICKET_METRIC_NOTE}
             color="blue"
             selected={activeMetric === "ticketAmount"}
             onClick={() => setActiveMetric("ticketAmount")}
@@ -671,6 +699,7 @@ export function DashboardTabs({
             label="チケット販売数"
             value={`${fmt(current.summary.ticketCount)}枚`}
             subLabel={sub.count}
+            annotation={TICKET_METRIC_NOTE}
             color="green"
             selected={activeMetric === "ticketCount"}
             onClick={() => setActiveMetric("ticketCount")}
