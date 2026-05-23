@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { RecentReports } from "@/components/dashboard/RecentReports";
 import { ActivityCalendar } from "@/components/dashboard/ActivityCalendar";
-import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
+import { DashboardTabs, aggregateTicketSalesBreakdown, ZERO_TICKET_SALES_BREAKDOWN } from "@/components/dashboard/DashboardTabs";
 import type { SummaryMetrics, PeriodData, MetricSeriesPoint } from "@/components/dashboard/DashboardTabs";
 import type { DailyReport } from "@/types/database";
 import { parseReportContent } from "@/types/report";
@@ -144,7 +144,13 @@ interface DashboardData {
 }
 
 const ZERO: SummaryMetrics = { ticketAmount: 0, ticketCount: 0, retailAmount: 0, retailPayCount: 0 };
-const EMPTY_PERIOD: PeriodData = { summary: ZERO, series: [], receptionPie: [], ticketTypePie: [] };
+const EMPTY_PERIOD: PeriodData = {
+  summary: ZERO,
+  series: [],
+  receptionPie: [],
+  ticketTypePie: [],
+  ticketSalesBreakdown: ZERO_TICKET_SALES_BREAKDOWN,
+};
 
 async function getDashboardData(): Promise<DashboardData> {
   const now   = new Date();
@@ -240,12 +246,14 @@ async function getDashboardData(): Promise<DashboardData> {
         series:       buildMetricSeries(monthlyReports ?? []),
         receptionPie:  monthlyPie.receptionPie,
         ticketTypePie: monthlyPie.ticketTypePie,
+        ticketSalesBreakdown: aggregateTicketSalesBreakdown(monthlyReports ?? []),
       },
       weekly: {
         summary:      aggregateReports(thisWeekReports ?? []),
         series:       buildMetricSeries(thisWeekReports ?? []),
         receptionPie:  weeklyPie.receptionPie,
         ticketTypePie: weeklyPie.ticketTypePie,
+        ticketSalesBreakdown: aggregateTicketSalesBreakdown(thisWeekReports ?? []),
       },
       prevWeekSummary: aggregateReports(prevWeekReports ?? []),
       daily: {
@@ -253,6 +261,7 @@ async function getDashboardData(): Promise<DashboardData> {
         series:       buildMetricSeries(todayReports ?? []),
         receptionPie:  dailyPie.receptionPie,
         ticketTypePie: dailyPie.ticketTypePie,
+        ticketSalesBreakdown: aggregateTicketSalesBreakdown(todayReports ?? []),
       },
       recentReports:   recentReports   ?? [],
       calendarReports: calendarEntries,

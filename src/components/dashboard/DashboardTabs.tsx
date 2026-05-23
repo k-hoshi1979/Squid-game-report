@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PieChart } from "./PieChart";
 import type { PieSlice } from "./PieChart";
 import type { DashboardReportLite } from "@/app/api/dashboard/month-reports/route";
-import { parseReportContent } from "@/types/report";
+import { parseReportContent, jerseyRentalWithDefaults } from "@/types/report";
 
 // ─── 型定義 ──────────────────────────────────────────────
 
@@ -23,11 +23,44 @@ export interface MetricSeriesPoint {
   retailPayCount: number;
 }
 
+export interface TicketSalesBreakdown {
+  /** 各日報の「特典残数」確定での当日販売数 salesCount の合計 */
+  tokutenSalesCount: number;
+  jerseyNormalCount: number;
+  jerseySnsCount: number;
+}
+
+export const ZERO_TICKET_SALES_BREAKDOWN: TicketSalesBreakdown = {
+  tokutenSalesCount: 0,
+  jerseyNormalCount: 0,
+  jerseySnsCount: 0,
+};
+
 export interface PeriodData {
   summary:       SummaryMetrics;
   series:        MetricSeriesPoint[];
   receptionPie:  PieSlice[];
   ticketTypePie: PieSlice[];
+  /** チケット販売内訳（円グラフ）補助：特典販売数・ジャージ着数 */
+  ticketSalesBreakdown: TicketSalesBreakdown;
+}
+
+/** dashboard ページ等、content を持つ行から集計する */
+export function aggregateTicketSalesBreakdown(
+  reports: { content: string }[],
+): TicketSalesBreakdown {
+  let tokutenSalesCount = 0;
+  let jerseyNormalCount = 0;
+  let jerseySnsCount = 0;
+  for (const r of reports) {
+    const data = parseReportContent(r.content);
+    if (!data) continue;
+    tokutenSalesCount += data.tokuten?.salesCount ?? 0;
+    const jr = jerseyRentalWithDefaults(data.jerseyRental);
+    jerseyNormalCount += jr.normalCount;
+    jerseySnsCount += jr.snsCount;
+  }
+  return { tokutenSalesCount, jerseyNormalCount, jerseySnsCount };
 }
 
 export interface DashboardTabsProps {
@@ -346,6 +379,7 @@ function buildPeriodData(reports: DashboardReportLite[]): PeriodData {
     series: buildMetricSeries(reports),
     receptionPie: pie.receptionPie,
     ticketTypePie: pie.ticketTypePie,
+    ticketSalesBreakdown: aggregateTicketSalesBreakdown(reports),
   };
 }
 
@@ -360,6 +394,7 @@ function buildPeriodDataForRange(
     series: buildMetricSeriesForDateRange(reports, rangeStart, rangeEnd),
     receptionPie: pie.receptionPie,
     ticketTypePie: pie.ticketTypePie,
+    ticketSalesBreakdown: aggregateTicketSalesBreakdown(reports),
   };
 }
 
@@ -691,6 +726,25 @@ export function DashboardTabs({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <PieChart title="受付名別（E列）"  slices={current.receptionPie}  unit="枚" />
           <PieChart title="販売区分別（H列）" slices={current.ticketTypePie} unit="枚" />
+        </div>
+        <div className="mt-4 bg-[var(--card)] rounded-xl border border-[var(--border)] p-4 shadow-sm space-y-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2 border-b border-[var(--border)]/60">
+            <span className="text-sm text-[var(--foreground)] font-medium">特典付きチケット販売数</span>
+            <span className="text-sm font-bold text-[var(--foreground)] tabular-nums">
+              {fmt(current.ticketSalesBreakdown.tokutenSalesCount)} 枚
+            </span>
+          </div>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
+            <span className="text-sm text-[var(--foreground)] font-medium">ジャージレンタル</span>
+            <div className="text-sm font-bold text-[var(--foreground)] tabular-nums text-right space-y-0.5">
+              <div>
+                通常 {fmt(current.ticketSalesBreakdown.jerseyNormalCount)} 着／SNS {fmt(current.ticketSalesBreakdown.jerseySnsCount)} 着
+              </div>
+              <div className="text-xs font-semibold text-[var(--muted-foreground)]">
+                計 {fmt(current.ticketSalesBreakdown.jerseyNormalCount + current.ticketSalesBreakdown.jerseySnsCount)} 着
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </div>
