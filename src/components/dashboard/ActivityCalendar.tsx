@@ -37,9 +37,6 @@ export function ActivityCalendar({
   const [reports,   setReports]   = useState<CalendarReport[]>(initialReports);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 初回レンダリングかどうかのフラグ（初期データ再フェッチを防ぐ）
-  const [hasMounted, setHasMounted] = useState(false);
-
   const fetchReports = useCallback(async (y: number, m: number) => {
     setIsLoading(true);
     try {
@@ -55,13 +52,10 @@ export function ActivityCalendar({
     }
   }, []);
 
+  /** サーバー未取得・デモ SSR でも、マウント時に必ず API で再取得する */
   useEffect(() => {
-    if (!hasMounted) {
-      setHasMounted(true);
-      return;
-    }
-    fetchReports(year, month);
-  }, [year, month]); // eslint-disable-line react-hooks/exhaustive-deps
+    void fetchReports(year, month);
+  }, [year, month, fetchReports]);
 
   const goPrevMonth = () => {
     if (month === 1) { setYear((y) => y - 1); setMonth(12); }

@@ -14,6 +14,9 @@ import type { DashboardReportLite } from "@/app/api/dashboard/month-reports/rout
 
 export const metadata: Metadata = { title: "ダッシュボード" };
 
+/** キャッシュ済み SSR でセッション欠落・デモ扱いになるのを避ける（Vercel 本番対策） */
+export const dynamic = "force-dynamic";
+
 // ─── 集計ヘルパー ─────────────────────────────────────────
 
 function aggregateReports(reports: DailyReport[]): SummaryMetrics {

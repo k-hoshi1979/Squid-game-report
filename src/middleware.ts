@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-export async function proxy(request: NextRequest) {
+/** Next が読み込むファイル名・関数名である必要があります（旧 proxy.ts は未適用だった） */
+export async function middleware(request: NextRequest) {
   const response = await updateSession(request);
-  // サーバーコンポーネントでアクティブリンクを判定するためにパスをヘッダーに追加
   response.headers.set("x-pathname", request.nextUrl.pathname);
   return response;
 }
