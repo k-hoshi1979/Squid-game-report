@@ -3,7 +3,14 @@
 import { useRef, useState, useMemo, useTransition } from "react";
 import { CsvTicketImporter } from "./CsvTicketImporter";
 import type { CsvParseResult } from "@/lib/csv/parseTicketCsv";
-import { type ReportData, IB_UNIT_PRICE_BY_KEY, ibTicketsWithDefaults } from "@/types/report";
+import {
+  type ReportData,
+  IB_UNIT_PRICE_BY_KEY,
+  ibTicketsWithDefaults,
+  jerseyRentalWithDefaults,
+  JERSEY_RENTAL_UNIT_NORMAL,
+  JERSEY_RENTAL_UNIT_SNS,
+} from "@/types/report";
 
 /** ReportData.csv を CsvParseResult 互換の形式に変換する（旧データ groups なし対応）*/
 function reportCsvToParseResult(csv: NonNullable<ReportData["csv"]>): CsvParseResult {
@@ -42,6 +49,15 @@ const fmtDateJa = (d: string) => {
 interface TokutenState  { prev: number; today: number; sales: number; amount: number; done: boolean }
 interface VipState      { prev: number; today: number; sales: number; amount: number; done: boolean }
 interface RetailState   { taxEx: number; taxIn: number; payCount: number; done: boolean }
+/** ジャージレンタル（リテール合計とは別計上） */
+interface JerseyState {
+  normalCount: number;
+  snsCount: number;
+  subtotalNormal: number;
+  subtotalSns: number;
+  totalAmount: number;
+  done: boolean;
+}
 interface IbState {
   genWeekday: number;
   genHoliday: number;
@@ -189,6 +205,20 @@ export function ReportNewForm({
         }
       : { taxEx: 0, taxIn: 0, payCount: 0, done: false }
   );
+  const [jersey, setJersey] = useState<JerseyState>(() => {
+    if (!initialData) {
+      return { normalCount: 0, snsCount: 0, subtotalNormal: 0, subtotalSns: 0, totalAmount: 0, done: false };
+    }
+    const j = jerseyRentalWithDefaults(initialData.jerseyRental);
+    return {
+      normalCount: j.normalCount,
+      snsCount: j.snsCount,
+      subtotalNormal: j.subtotalNormal,
+      subtotalSns: j.subtotalSns,
+      totalAmount: j.totalAmount,
+      done: true,
+    };
+  });
   const [ibTickets, setIbTickets] = useState<IbState>(() => {
     if (!initialData) {
       return {
@@ -226,6 +256,8 @@ export function ReportNewForm({
   const retailSalesRef    = useRef<HTMLInputElement>(null);
   const retailSalesTaxInRef = useRef<HTMLInputElement>(null);
   const payCountRef       = useRef<HTMLInputElement>(null);
+  const jerseyNormalRef   = useRef<HTMLInputElement>(null);
+  const jerseySnsRef      = useRef<HTMLInputElement>(null);
   const ibGenWeekdayRef      = useRef<HTMLInputElement>(null);
   const ibGenHolidayRef      = useRef<HTMLInputElement>(null);
   const ibChildWeekdayRef    = useRef<HTMLInputElement>(null);
@@ -256,6 +288,21 @@ export function ReportNewForm({
     const taxIn    = toNum(retailSalesTaxInRef.current?.value);
     const payCount = toNum(payCountRef.current?.value);
     setRetail({ taxEx, taxIn, payCount, done: true });
+  };
+
+  const confirmJersey = () => {
+    const n = toNum(jerseyNormalRef.current?.value);
+    const s = toNum(jerseySnsRef.current?.value);
+    const subN = n * JERSEY_RENTAL_UNIT_NORMAL;
+    const subS = s * JERSEY_RENTAL_UNIT_SNS;
+    setJersey({
+      normalCount: n,
+      snsCount: s,
+      subtotalNormal: subN,
+      subtotalSns: subS,
+      totalAmount: subN + subS,
+      done: true,
+    });
   };
 
   const confirmIb = () => {
@@ -305,6 +352,7 @@ export function ReportNewForm({
     kashikiriVip: { prevTotal: vip.prev, todayTotal: vip.today, salesCount: vip.sales, unitPrice: VIP_PRICE, amount: vip.amount },
     ticketTotal,
     retail: { salesTaxEx: retail.taxEx, salesTaxIn: retail.taxIn, paymentCount: retail.payCount },
+    jerseyRental: jerseyRentalWithDefaults({ normalCount: jersey.normalCount, snsCount: jersey.snsCount }),
     ibTickets: {
       genWeekday:   { count: ibTickets.genWeekday,      unitPrice: IB_UNIT_PRICE_BY_KEY.genWeekday,      amount: ibTickets.genWeekday      * IB_UNIT_PRICE_BY_KEY.genWeekday },
       genHoliday:   { count: ibTickets.genHoliday,      unitPrice: IB_UNIT_PRICE_BY_KEY.genHoliday,      amount: ibTickets.genHoliday      * IB_UNIT_PRICE_BY_KEY.genHoliday },
@@ -318,7 +366,7 @@ export function ReportNewForm({
       totalCount: ibTickets.totalCount, totalAmount: ibTickets.totalAmount,
     },
     operationNotes, irregularReport,
-  }), [date, reporter, csvData, tokuten, vip, ticketTotal, retail, ibTickets, operationNotes, irregularReport]);
+  }), [date, reporter, csvData, tokuten, vip, ticketTotal, retail, jersey, ibTickets, operationNotes, irregularReport]);
 
   // ─── 送信ハンドラ（formなし・useTransition） ──────────
   /** 入力欄が uncontrolled のため、保存直前は ref の現値で上書き（確定ボタンを押し忘れても反映される） */
@@ -328,11 +376,18 @@ export function ReportNewForm({
       salesTaxIn: toNum(retailSalesTaxInRef.current?.value),
       paymentCount: toNum(payCountRef.current?.value),
     };
+    const jerseyPayload = jerseyRentalWithDefaults({
+      normalCount: toNum(jerseyNormalRef.current?.value),
+      snsCount: toNum(jerseySnsRef.current?.value),
+    });
 
     const fd = new FormData();
     fd.set("report_date", date);
     fd.set("title", `${date} 日報${reporter ? ` (${reporter})` : ""}`);
-    fd.set("content", JSON.stringify({ ...reportData, retail: retailPayload }));
+    fd.set(
+      "content",
+      JSON.stringify({ ...reportData, retail: retailPayload, jerseyRental: jerseyPayload }),
+    );
     fd.set("action", submitAction);
     startTransition(async () => { await action(fd); });
   };
@@ -554,13 +609,63 @@ export function ReportNewForm({
               />
             </div>
           </div>
-          <NumInput label="決済件数" inputRef={payCountRef} unit="件" defaultValue={initialData?.retail.paymentCount ?? ""} />
+          <NumInput label="決済件数" inputRef={payCountRef} unit="件" defaultValue={initialData?.retail?.paymentCount ?? ""} />
         </div>
         {retail.done && (
           <ResultBox rows={[
             { label: "物販（税抜）", value: `¥${fmt(retail.taxEx)}` },
             { label: "物販（税込）", value: `¥${fmt(Math.round(retail.taxIn))}`, highlight: true },
             { label: "決済件数", value: `${fmt(retail.payCount)} 件` },
+          ]} />
+        )}
+      </Card>
+
+      {/* ── ■ジャージレンタル（リテール合計とは別計上） ── */}
+      <Card title="■ ジャージレンタル">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <p className="text-xs text-[var(--muted-foreground)]">各項目の数量を入力してください。レンタル合計 ＝ 小計① ＋ 小計②</p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 font-medium">
+              ※この金額はリテール売上合計には含みません。
+            </p>
+          </div>
+          <OkButton onClick={confirmJersey} done={jersey.done} />
+        </div>
+        <div className="space-y-2 pl-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm text-[var(--foreground)] w-44 shrink-0">ジャージレンタル通常</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                ref={jerseyNormalRef}
+                type="number"
+                min="0"
+                defaultValue={jersey.normalCount || ""}
+                placeholder="0"
+                className="w-24 px-3 py-1.5 border border-[var(--border)] rounded-lg text-sm bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-right tabular-nums"
+              />
+              <span className="text-xs text-[var(--muted-foreground)]">×　¥{fmt(JERSEY_RENTAL_UNIT_NORMAL)}　＝　小計金額①</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm text-[var(--foreground)] w-44 shrink-0">ジャージレンタル SNS</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                ref={jerseySnsRef}
+                type="number"
+                min="0"
+                defaultValue={jersey.snsCount || ""}
+                placeholder="0"
+                className="w-24 px-3 py-1.5 border border-[var(--border)] rounded-lg text-sm bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-right tabular-nums"
+              />
+              <span className="text-xs text-[var(--muted-foreground)]">×　¥{fmt(JERSEY_RENTAL_UNIT_SNS)}　＝　小計金額②</span>
+            </div>
+          </div>
+        </div>
+        {jersey.done && (
+          <ResultBox rows={[
+            { label: "小計金額①（通常）", value: `¥${fmt(jersey.subtotalNormal)}` },
+            { label: "小計金額②（SNS）", value: `¥${fmt(jersey.subtotalSns)}` },
+            { label: "レンタル合計（①＋②）", value: `¥${fmt(jersey.totalAmount)}`, highlight: true },
           ]} />
         )}
       </Card>
@@ -739,6 +844,19 @@ function ReportPreview({ data }: { data: ReportData }) {
         <PRow label="物販（税抜）"  value={`¥${fmt(data.retail.salesTaxEx)}`} />
         <PRow label="物販（税込）"  value={`¥${fmt(Math.round(data.retail.salesTaxIn))}`} bold />
         <PRow label="決済件数"      value={`${fmt(data.retail.paymentCount)}件`} />
+      </PBlock>
+
+      <PBlock title="■ ジャージレンタル">
+        {(() => {
+          const jr = jerseyRentalWithDefaults(data.jerseyRental);
+          return (
+            <>
+              <PRow label="通常（×¥1,500）" value={`${fmt(jr.normalCount)}着`} sub={`¥${fmt(jr.subtotalNormal)}`} />
+              <PRow label="SNS（×¥1,000）" value={`${fmt(jr.snsCount)}着`} sub={`¥${fmt(jr.subtotalSns)}`} />
+              <PRow label="レンタル合計（リテール合計とは別計上）" value={`¥${fmt(jr.totalAmount)}`} bold />
+            </>
+          );
+        })()}
       </PBlock>
 
       <PBlock title="■ IB対応チケット">

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { parseReportContent, ibTicketsWithDefaults } from "@/types/report";
+import { parseReportContent, ibTicketsWithDefaults, jerseyRentalWithDefaults } from "@/types/report";
 import type { DailyReport } from "@/types/database";
 
 // ─── 日付ユーティリティ ───────────────────────────────────
@@ -81,6 +81,14 @@ function generateCsv(reports: DailyReport[]): string {
     "リテール売上（税抜）",
     "リテール売上（税込）",
     "決済件数",
+    // ジャージレンタル（リテールとは別計上）
+    "ジャージレンタル通常_数量",
+    "ジャージレンタル通常_単価",
+    "ジャージレンタル通常_小計",
+    "ジャージレンタルSNS_数量",
+    "ジャージレンタルSNS_単価",
+    "ジャージレンタルSNS_小計",
+    "ジャージレンタル_合計",
     // IB対応チケット
     "IB_一般（平日）枚数",
     "IB_一般（平日）金額",
@@ -119,6 +127,7 @@ function generateCsv(reports: DailyReport[]): string {
     const ret = d?.retail;
     const ibRaw = d?.ibTickets;
     const ib      = ibRaw ? ibTicketsWithDefaults(ibRaw) : null;
+    const jr      = jerseyRentalWithDefaults(d?.jerseyRental);
     const csv = d?.csv;
     const tt  = d?.ticketTotal;
 
@@ -146,6 +155,13 @@ function generateCsv(reports: DailyReport[]): string {
       ret?.salesTaxEx    ?? "",
       ret?.salesTaxIn    ?? "",
       ret?.paymentCount  ?? "",
+      jr.normalCount,
+      jr.unitPriceNormal,
+      jr.subtotalNormal,
+      jr.snsCount,
+      jr.unitPriceSns,
+      jr.subtotalSns,
+      jr.totalAmount,
       // IB
       ib?.genWeekday.count   ?? "",
       ib?.genWeekday.amount  ?? "",

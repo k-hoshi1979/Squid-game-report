@@ -47,6 +47,20 @@ export interface ReportData {
     paymentCount: number;
   };
 
+  /**
+   * ジャージレンタル（リテール売上には含めない）
+   * レンタル合計 ＝ 小計金額① ＋ 小計金額②
+   */
+  jerseyRental: {
+    normalCount: number;
+    snsCount: number;
+    unitPriceNormal: number; // 通常 ¥1500
+    unitPriceSns: number; // SNS ¥1000
+    subtotalNormal: number;
+    subtotalSns: number;
+    totalAmount: number;
+  };
+
   /** IB対応チケット */
   ibTickets: {
     genWeekday:   IbTicketRow; // 一般（平日）  ¥4,230
@@ -102,7 +116,28 @@ export const IB_UNIT_PRICE_BY_KEY = {
 
 export type IbTicketPriceKey = keyof typeof IB_UNIT_PRICE_BY_KEY;
 
-/** 旧日報JSON（4券種追加前）にも対応して ibTickets を埋める */
+export const JERSEY_RENTAL_UNIT_NORMAL = 1500;
+export const JERSEY_RENTAL_UNIT_SNS = 1000;
+
+export function jerseyRentalWithDefaults(
+  j: Partial<ReportData["jerseyRental"]> | undefined | null,
+): ReportData["jerseyRental"] {
+  const nc = coerceNum(j?.normalCount);
+  const sc = coerceNum(j?.snsCount);
+  const subN = nc * JERSEY_RENTAL_UNIT_NORMAL;
+  const subS = sc * JERSEY_RENTAL_UNIT_SNS;
+  return {
+    normalCount: nc,
+    snsCount: sc,
+    unitPriceNormal: JERSEY_RENTAL_UNIT_NORMAL,
+    unitPriceSns: JERSEY_RENTAL_UNIT_SNS,
+    subtotalNormal: subN,
+    subtotalSns: subS,
+    totalAmount: subN + subS,
+  };
+}
+
+/** 旧日報JSON（IB券種不足時）にも対応して ibTickets を埋める */
 export function ibTicketsWithDefaults(
   ib: Partial<ReportData["ibTickets"]> | undefined | null,
 ): ReportData["ibTickets"] {
@@ -191,6 +226,7 @@ export function sanitizeReportForForm(raw: ReportData): ReportData {
       salesTaxIn: coerceNum(r?.salesTaxIn),
       paymentCount: coerceNum(r?.paymentCount),
     },
+    jerseyRental: jerseyRentalWithDefaults(raw.jerseyRental),
     ibTickets: ibTicketsWithDefaults(raw.ibTickets),
   };
 }

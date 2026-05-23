@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { ReportStatusBadge } from "@/components/dashboard/ReportStatusBadge";
-import { parseReportContent, ibTicketsWithDefaults } from "@/types/report";
+import { parseReportContent, ibTicketsWithDefaults, jerseyRentalWithDefaults } from "@/types/report";
 import type { ReportData } from "@/types/report";
 import { DeleteReportButton } from "@/components/reports/DeleteReportButton";
 import { ConfirmReportButton } from "@/components/reports/ConfirmReportButton";
@@ -59,6 +59,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 
 function StructuredReport({ data }: { data: ReportData }) {
   const ib = ibTicketsWithDefaults(data.ibTickets);
+  const jr = jerseyRentalWithDefaults(data.jerseyRental);
   return (
     <div className="space-y-4">
       {/* ■チケット売上 */}
@@ -119,6 +120,17 @@ function StructuredReport({ data }: { data: ReportData }) {
         <Row label="物販売り上げ（税抜）" value={`¥${fmt(data.retail.salesTaxEx)}`} />
         <Row label="物販売り上げ（税込）" value={`¥${fmt(Math.round(data.retail.salesTaxIn))}`} highlight />
         <Row label="決済件数" value={`${fmt(data.retail.paymentCount)}件`} />
+      </Card>
+
+      <Card title="■ ジャージレンタル">
+        <p className="text-xs text-amber-700 dark:text-amber-400 mb-2 font-medium">
+          ※リテール売上合計には含みません。
+        </p>
+        <Row label="ジャージレンタル通常" value={`${fmt(jr.normalCount)}着`} sub={`¥${fmt(jr.subtotalNormal)}（×¥${fmt(jr.unitPriceNormal)}）`} />
+        <Row label="ジャージレンタル SNS" value={`${fmt(jr.snsCount)}着`} sub={`¥${fmt(jr.subtotalSns)}（×¥${fmt(jr.unitPriceSns)}）`} />
+        <div className="mt-1 pt-1 border-t border-[var(--border)]">
+          <Row label="レンタル合計（小計①＋小計②）" value={`¥${fmt(jr.totalAmount)}`} highlight />
+        </div>
       </Card>
 
       {/* ■IB対応チケット */}
