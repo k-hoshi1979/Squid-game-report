@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { ReportNewForm } from "@/components/reports/ReportNewForm";
 import { createClient } from "@/lib/supabase/server";
+import { fetchRetailReportPrefill, getBusinessDateString } from "@/lib/retail/prefillReport";
 import { parseReportContent } from "@/types/report";
 import { createReport } from "./actions";
 
@@ -44,6 +45,8 @@ export default async function NewReportPage({ searchParams }: NewReportPageProps
     // 取得失敗時は空のまま（0で初期化）
   }
 
+  const retailPrefill = await fetchRetailReportPrefill(getBusinessDateString());
+
   return (
     <>
       <Header
@@ -62,7 +65,12 @@ export default async function NewReportPage({ searchParams }: NewReportPageProps
       />
       <main className="flex-1 p-3 sm:p-6">
         <div className="max-w-2xl mx-auto">
-          <ReportNewForm action={createReport} error={error} prevDayValues={prevDayValues} />
+          <ReportNewForm
+            action={createReport}
+            error={error}
+            prevDayValues={prevDayValues}
+            retailPrefill={retailPrefill ?? undefined}
+          />
         </div>
       </main>
     </>

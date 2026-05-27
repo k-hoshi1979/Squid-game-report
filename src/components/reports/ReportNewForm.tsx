@@ -11,6 +11,7 @@ import {
   JERSEY_RENTAL_UNIT_NORMAL,
   JERSEY_RENTAL_UNIT_SNS,
 } from "@/types/report";
+import type { RetailReportPrefill } from "@/lib/retail/prefillReport";
 
 /** ReportData.csv を CsvParseResult 互換の形式に変換する（旧データ groups なし対応）*/
 function reportCsvToParseResult(csv: NonNullable<ReportData["csv"]>): CsvParseResult {
@@ -151,12 +152,14 @@ export function ReportNewForm({
   initialData,
   isEdit = false,
   prevDayValues,
+  retailPrefill,
 }: {
   action: (fd: FormData) => Promise<void>;
   error?: string;
   initialData?: ReportData;
   isEdit?: boolean;
   prevDayValues?: { tokutenPrev: number; vipPrev: number; reportDate: string };
+  retailPrefill?: RetailReportPrefill;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -206,41 +209,69 @@ export function ReportNewForm({
       : { taxEx: 0, taxIn: 0, payCount: 0, done: false }
   );
   const [jersey, setJersey] = useState<JerseyState>(() => {
-    if (!initialData) {
-      return { normalCount: 0, snsCount: 0, subtotalNormal: 0, subtotalSns: 0, totalAmount: 0, done: false };
-    }
-    const j = jerseyRentalWithDefaults(initialData.jerseyRental);
-    return {
-      normalCount: j.normalCount,
-      snsCount: j.snsCount,
-      subtotalNormal: j.subtotalNormal,
-      subtotalSns: j.subtotalSns,
-      totalAmount: j.totalAmount,
-      done: true,
-    };
-  });
-  const [ibTickets, setIbTickets] = useState<IbState>(() => {
-    if (!initialData) {
+    if (initialData) {
+      const j = jerseyRentalWithDefaults(initialData.jerseyRental);
       return {
-        genWeekday: 0, genHoliday: 0, childWeekday: 0, childHoliday: 0,
-        genVipWeekday: 0, genVipHoliday: 0, childVipWeekday: 0, childVipHoliday: 0,
-        vip: 0, totalCount: 0, totalAmount: 0, done: false,
+        normalCount: j.normalCount,
+        snsCount: j.snsCount,
+        subtotalNormal: j.subtotalNormal,
+        subtotalSns: j.subtotalSns,
+        totalAmount: j.totalAmount,
+        done: true,
       };
     }
-    const ib = ibTicketsWithDefaults(initialData.ibTickets);
+    if (retailPrefill) {
+      const j = jerseyRentalWithDefaults(retailPrefill.jerseyRental);
+      return {
+        normalCount: j.normalCount,
+        snsCount: j.snsCount,
+        subtotalNormal: j.subtotalNormal,
+        subtotalSns: j.subtotalSns,
+        totalAmount: j.totalAmount,
+        done: false,
+      };
+    }
+    return { normalCount: 0, snsCount: 0, subtotalNormal: 0, subtotalSns: 0, totalAmount: 0, done: false };
+  });
+  const [ibTickets, setIbTickets] = useState<IbState>(() => {
+    if (initialData) {
+      const ib = ibTicketsWithDefaults(initialData.ibTickets);
+      return {
+        genWeekday:      ib.genWeekday.count,
+        genHoliday:      ib.genHoliday.count,
+        childWeekday:    ib.childWeekday.count,
+        childHoliday:    ib.childHoliday.count,
+        genVipWeekday:   ib.genVipWeekday.count,
+        genVipHoliday:   ib.genVipHoliday.count,
+        childVipWeekday: ib.childVipWeekday.count,
+        childVipHoliday: ib.childVipHoliday.count,
+        vip:             ib.vip.count,
+        totalCount:      ib.totalCount,
+        totalAmount:     ib.totalAmount,
+        done:            true,
+      };
+    }
+    if (retailPrefill) {
+      const ib = ibTicketsWithDefaults(retailPrefill.ibTickets);
+      return {
+        genWeekday:      ib.genWeekday.count,
+        genHoliday:      ib.genHoliday.count,
+        childWeekday:    ib.childWeekday.count,
+        childHoliday:    ib.childHoliday.count,
+        genVipWeekday:   ib.genVipWeekday.count,
+        genVipHoliday:   ib.genVipHoliday.count,
+        childVipWeekday: ib.childVipWeekday.count,
+        childVipHoliday: ib.childVipHoliday.count,
+        vip:             ib.vip.count,
+        totalCount:      ib.totalCount,
+        totalAmount:     ib.totalAmount,
+        done:            false,
+      };
+    }
     return {
-      genWeekday:      ib.genWeekday.count,
-      genHoliday:      ib.genHoliday.count,
-      childWeekday:    ib.childWeekday.count,
-      childHoliday:    ib.childHoliday.count,
-      genVipWeekday:   ib.genVipWeekday.count,
-      genVipHoliday:   ib.genVipHoliday.count,
-      childVipWeekday: ib.childVipWeekday.count,
-      childVipHoliday: ib.childVipHoliday.count,
-      vip:             ib.vip.count,
-      totalCount:      ib.totalCount,
-      totalAmount:     ib.totalAmount,
-      done:            true,
+      genWeekday: 0, genHoliday: 0, childWeekday: 0, childHoliday: 0,
+      genVipWeekday: 0, genVipHoliday: 0, childVipWeekday: 0, childVipHoliday: 0,
+      vip: 0, totalCount: 0, totalAmount: 0, done: false,
     };
   });
 
@@ -398,6 +429,12 @@ export function ReportNewForm({
       {error && (
         <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300">
           {decodeURIComponent(error)}
+        </div>
+      )}
+
+      {!isEdit && retailPrefill && (
+        <div className="px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-200">
+          RETAIL業務アプリの当日データ（ジャージレンタル・IBチケット）を取り込みました
         </div>
       )}
 
