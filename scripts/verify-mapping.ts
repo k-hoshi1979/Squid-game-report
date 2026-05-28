@@ -1,5 +1,5 @@
 import { readFileSync } from "fs";
-import { parseTicketCsv } from "../src/lib/csv/parseTicketCsv";
+import { parseTicketCsv, type TicketSummaryRow } from "../src/lib/csv/parseTicketCsv";
 import { EXCEL_TICKET_LABELS } from "../src/lib/csv/excelExportSpec";
 import { mapTicketRowToIndex } from "../src/lib/csv/mapTicketRowToIndex";
 import { resolveExcelLabel } from "../src/lib/csv/ticketCsvMapping";
@@ -14,7 +14,7 @@ const buf = readFileSync(csvPath);
 const text = new TextDecoder("shift_jis").decode(buf);
 const parsed = parseTicketCsv(text);
 const counts = Array<number>(EXCEL_TICKET_LABELS.length).fill(0);
-const unmapped: { rec: string; typ: string; count: number }[] = [];
+const unmapped: TicketSummaryRow[] = [];
 
 for (const row of parsed.rows) {
   const idx = mapTicketRowToIndex(row.receptionName, row.ticketType);
