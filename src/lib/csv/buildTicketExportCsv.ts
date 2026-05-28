@@ -9,6 +9,7 @@ import {
   APPEND_EXPORT_FIELDS,
   EXCEL_TICKET_LABELS,
 } from "@/lib/csv/excelExportSpec";
+import { mapTicketRowToIndex } from "@/lib/csv/mapTicketRowToIndex";
 
 export type TicketExportLayout = "vertical" | "horizontal";
 
@@ -20,58 +21,13 @@ function escapeCsv(v: string | number | null | undefined): string {
   return s;
 }
 
-/** 販売区分名の表記ゆれを吸収（全角数字・スペース・VIP表記など） */
-export function normalizeTicketLabel(s: string): string {
-  return s
-    .trim()
-    .replace(/\u3000/g, " ")
-    .replace(/\s+/g, " ")
-    .replace(/[０-９]/g, (c) =>
-      String.fromCharCode(c.charCodeAt(0) - 0xfee0),
-    )
-    .replace(/[（]/g, "（")
-    .replace(/[）]/g, "）")
-    .replace(/VIP/gi, "ＶＩＰ")
-    .replace(/ＶＩＰ/g, "ＶＩＰ");
-}
-
-const NORMALIZED_EXCEL_LABELS = EXCEL_TICKET_LABELS.map(normalizeTicketLabel);
-
-function labelIndex(label: string): number {
-  const n = normalizeTicketLabel(label);
-  return NORMALIZED_EXCEL_LABELS.indexOf(n);
-}
-
-/** CSV行が実績管理表 B21:B100 のどの行に該当するか */
-function mapCsvRowToLabelIndex(
-  receptionName: string,
-  ticketType: string,
-): number {
-  const rec = normalizeTicketLabel(receptionName);
-  const typ = normalizeTicketLabel(ticketType);
-
-  const candidates = [
-    typ,
-    normalizeTicketLabel(`${rec} ${typ}`),
-    normalizeTicketLabel(`${rec}　${typ}`),
-    normalizeTicketLabel(`${rec}${typ}`),
-  ];
-
-  for (const c of candidates) {
-    const idx = NORMALIZED_EXCEL_LABELS.indexOf(c);
-    if (idx >= 0) return idx;
-  }
-
-  return -1;
-}
-
 function buildTicketCounts(
   rows: { receptionName: string; ticketType: string; count: number }[],
 ): number[] {
   const counts = Array<number>(EXCEL_TICKET_LABELS.length).fill(0);
 
   for (const row of rows) {
-    const idx = mapCsvRowToLabelIndex(row.receptionName, row.ticketType);
+    const idx = mapTicketRowToIndex(row.receptionName, row.ticketType);
     if (idx >= 0) counts[idx] += row.count;
   }
 
