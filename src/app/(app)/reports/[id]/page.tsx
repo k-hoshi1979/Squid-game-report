@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { ReportStatusBadge } from "@/components/dashboard/ReportStatusBadge";
 import { parseReportContent, ibTicketsWithDefaults, jerseyRentalWithDefaults, snsPostWithDefaults } from "@/types/report";
+import { ticketTotalTaxEx } from "@/lib/tax";
 import type { ReportData } from "@/types/report";
 import { DeleteReportButton } from "@/components/reports/DeleteReportButton";
 import { ConfirmReportButton } from "@/components/reports/ConfirmReportButton";
@@ -111,7 +112,7 @@ function StructuredReport({ data }: { data: ReportData }) {
         <div className="mt-1 pt-1 border-t-2 border-[var(--border)]">
           <Row label="合計枚数" value={`${fmt(data.ticketTotal.count)}枚`} highlight />
           <Row label="売上合計（税込）" value={`¥${fmt(data.ticketTotal.amountTaxIn)}`} highlight />
-          <Row label="売上合計（税抜）" value={`¥${fmt(Math.round(data.ticketTotal.amountTaxEx))}`} />
+          <Row label="売上合計（税抜）" value={`¥${fmt(ticketTotalTaxEx(data.ticketTotal))}`} />
         </div>
       </Card>
 

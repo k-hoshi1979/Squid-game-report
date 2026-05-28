@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buildTicketExportCsv } from "@/lib/csv/buildTicketExportCsv";
 import { parseReportContent, ibTicketsWithDefaults, jerseyRentalWithDefaults, snsPostWithDefaults } from "@/types/report";
+import { ticketTotalTaxEx } from "@/lib/tax";
 import type { DailyReport } from "@/types/database";
 
 // ─── 日付ユーティリティ ───────────────────────────────────
@@ -145,7 +146,9 @@ function generateCsv(reports: DailyReport[]): string {
       // チケット合計
       tt?.count       ?? "",
       tt?.amountTaxIn ?? "",
-      tt?.amountTaxEx != null ? Math.round(tt.amountTaxEx) : "",
+      tt?.amountTaxEx != null || tt?.amountTaxIn != null
+        ? ticketTotalTaxEx(tt)
+        : "",
       // 特典
       tok?.prevRemaining ?? "",
       tok?.todayRemaining ?? "",

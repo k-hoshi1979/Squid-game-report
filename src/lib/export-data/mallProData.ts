@@ -1,4 +1,5 @@
 import type { ReportData } from "@/types/report";
+import { ticketTotalTaxEx } from "@/lib/tax";
 
 export interface MallProPurchaseRow {
   count: number;
@@ -53,6 +54,6 @@ export function buildMallProData(
       count: data.kashikiriVip?.salesCount ?? 0,
       amount: data.kashikiriVip?.amount ?? 0,
     },
-    totalTaxEx: Math.round(data.ticketTotal?.amountTaxEx ?? 0),
+    totalTaxEx: ticketTotalTaxEx(data.ticketTotal),
   };
 }

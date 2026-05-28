@@ -13,6 +13,7 @@ import {
   JERSEY_RENTAL_UNIT_SNS,
 } from "@/types/report";
 import type { RetailReportPrefill } from "@/lib/retail/prefillReport";
+import { taxExFromTaxIn, ticketTotalTaxEx } from "@/lib/tax";
 
 /** ReportData.csv を CsvParseResult 互換の形式に変換する（旧データ groups なし対応）*/
 function reportCsvToParseResult(csv: NonNullable<ReportData["csv"]>): CsvParseResult {
@@ -379,7 +380,7 @@ export function ReportNewForm({
     return {
       count:       (csvData?.totalCount ?? 0) + tokuten.sales + vip.sales,
       amountTaxIn: taxIn,
-      amountTaxEx: taxIn / 1.1,
+      amountTaxEx: taxExFromTaxIn(taxIn),
     };
   }, [csvData, tokuten, vip]);
 
@@ -612,7 +613,7 @@ export function ReportNewForm({
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-[var(--muted-foreground)]">売上合計（税抜）</span>
-              <span className="font-semibold">¥{fmt(Math.round(ticketTotal.amountTaxEx))}</span>
+              <span className="font-semibold">¥{fmt(ticketTotalTaxEx(ticketTotal))}</span>
             </div>
           </div>
         )}
@@ -941,7 +942,7 @@ function ReportPreview({ data }: { data: ReportData }) {
         <PRow label="貸切VIP（当日販売）" value={`${fmt(data.kashikiriVip.salesCount)}枚`} sub={`¥${fmt(data.kashikiriVip.amount)}`} />
         <PRow label="合計枚数" value={`${fmt(data.ticketTotal.count)}枚`} bold />
         <PRow label="売上合計（税込）" value={`¥${fmt(data.ticketTotal.amountTaxIn)}`} bold />
-        <PRow label="売上合計（税抜）" value={`¥${fmt(Math.round(data.ticketTotal.amountTaxEx))}`} />
+        <PRow label="売上合計（税抜）" value={`¥${fmt(ticketTotalTaxEx(data.ticketTotal))}`} />
       </PBlock>
 
       <PBlock title="■ リテール売上">

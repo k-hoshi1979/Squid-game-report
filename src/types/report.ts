@@ -37,7 +37,7 @@ export interface ReportData {
   ticketTotal: {
     count: number;
     amountTaxIn: number;  // 税込（表示金額）
-    amountTaxEx: number;  // 税抜 = 税込 ÷ 1.1
+    amountTaxEx: number;  // 税抜 = 税込 ÷ 1.1（端数切り捨て）
   };
 
   /** リテール販売 */
