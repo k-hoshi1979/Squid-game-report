@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { buildTicketExportCsv } from "@/lib/csv/buildTicketExportCsv";
 import { parseReportContent, ibTicketsWithDefaults, jerseyRentalWithDefaults } from "@/types/report";
 import type { DailyReport } from "@/types/database";
 
@@ -204,6 +205,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const period   = searchParams.get("period")   ?? "monthly";
   const baseDate = searchParams.get("date")     ?? localDateStr(new Date());
+  const format   = searchParams.get("format")   ?? "summary";
 
   const { start, end, label } = getDateRange(period, baseDate);
 
@@ -226,8 +228,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const csv      = generateCsv(reports ?? []);
-    const filename = `daily-reports-${label}.csv`;
+    const isTicketItems = format === "ticket-items";
+    const csv = isTicketItems
+      ? buildTicketExportCsv(reports ?? [])
+      : generateCsv(reports ?? []);
+    const filename = isTicketItems
+      ? `daily-reports-ticket-items-${label}.csv`
+      : `daily-reports-${label}.csv`;
 
     return new NextResponse(csv, {
       status: 200,

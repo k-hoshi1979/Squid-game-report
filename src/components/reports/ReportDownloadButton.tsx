@@ -3,11 +3,17 @@
 import { useState } from "react";
 
 type Period = "daily" | "weekly" | "monthly";
+type ExportFormat = "summary" | "ticket-items";
 
 const PERIOD_TABS: { id: Period; label: string; desc: string }[] = [
   { id: "daily",   label: "日別",  desc: "指定日1日分" },
   { id: "weekly",  label: "週間",  desc: "指定日を含む週（月〜日）" },
   { id: "monthly", label: "月間",  desc: "指定日を含む月（全日）" },
+];
+
+const FORMAT_TABS: { id: ExportFormat; label: string; desc: string }[] = [
+  { id: "summary",      label: "日報サマリー", desc: "特典・リテール・IB等を含む全体" },
+  { id: "ticket-items", label: "抽出項目", desc: "CSV取込データを82項目（受付名×販売区分）で出力" },
 ];
 
 function todayStr() {
@@ -18,6 +24,7 @@ function todayStr() {
 
 export function ReportDownloadButton() {
   const [period, setPeriod]       = useState<Period>("monthly");
+  const [format, setFormat]       = useState<ExportFormat>("ticket-items");
   const [baseDate, setBaseDate]   = useState(todayStr());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]         = useState<string | null>(null);
@@ -27,7 +34,7 @@ export function ReportDownloadButton() {
     setError(null);
 
     try {
-      const url = `/api/reports/download?period=${period}&date=${baseDate}`;
+      const url = `/api/reports/download?period=${period}&date=${baseDate}&format=${format}`;
       const res = await fetch(url);
 
       if (!res.ok) {
@@ -58,6 +65,7 @@ export function ReportDownloadButton() {
   };
 
   const activeTab = PERIOD_TABS.find((t) => t.id === period)!;
+  const activeFormat = FORMAT_TABS.find((t) => t.id === format)!;
 
   return (
     <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
@@ -67,6 +75,27 @@ export function ReportDownloadButton() {
             d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
         <h3 className="text-sm font-bold text-[var(--foreground)]">CSV ダウンロード</h3>
+      </div>
+
+      {/* 出力形式 */}
+      <div className="mb-4">
+        <p className="text-xs text-[var(--muted-foreground)] mb-2">出力形式</p>
+        <div className="flex items-center gap-1 p-1 bg-[var(--muted)] rounded-lg w-fit flex-wrap">
+          {FORMAT_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setFormat(tab.id)}
+              className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-all ${
+                format === tab.id
+                  ? "bg-[var(--card)] text-[var(--foreground)] shadow-sm"
+                  : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-[var(--muted-foreground)]">{activeFormat.desc}</p>
       </div>
 
       {/* 期間タブ */}
