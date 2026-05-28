@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buildTicketExportCsv } from "@/lib/csv/buildTicketExportCsv";
-import { parseReportContent, ibTicketsWithDefaults, jerseyRentalWithDefaults } from "@/types/report";
+import { parseReportContent, ibTicketsWithDefaults, jerseyRentalWithDefaults, snsPostWithDefaults } from "@/types/report";
 import type { DailyReport } from "@/types/database";
 
 // ─── 日付ユーティリティ ───────────────────────────────────
@@ -117,8 +117,12 @@ function generateCsv(reports: DailyReport[]): string {
     "CSV_合計枚数",
     "CSV_合計金額",
     // テキスト
+    "SNS投稿_〇",
+    "SNS投稿_▢",
+    "SNS投稿_合計",
     "運営所感",
     "イレギュラー報告",
+    "落とし物取得",
   ];
 
   const rows = reports.map((r) => {
@@ -189,9 +193,14 @@ function generateCsv(reports: DailyReport[]): string {
       csv?.venue        ?? "",
       csv?.totalCount   ?? "",
       csv?.totalAmount  ?? "",
-      // テキスト
+      // SNS・テキスト
+      ...(() => {
+        const sns = snsPostWithDefaults(d?.snsPost);
+        return [sns.circleCount, sns.squareCount, sns.totalCount];
+      })(),
       d?.operationNotes  ?? "",
       d?.irregularReport ?? "",
+      d?.lostAndFound ?? "",
     ].map(escapeCsv).join(",");
   });
 

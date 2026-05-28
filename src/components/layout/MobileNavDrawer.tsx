@@ -26,6 +26,26 @@ const navItems = [
     ),
   },
   {
+    label: "項目一覧",
+    href: "/items",
+    icon: (
+      <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+      </svg>
+    ),
+  },
+  {
+    label: "報告用データ",
+    href: "/export-data",
+    icon: (
+      <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M12 10v6m0 0l-3-3m3 3l3-3m2-8H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2h-1m-1 4l-3 3m0 0l-3-3m3 3V4" />
+      </svg>
+    ),
+  },
+  {
     label: "申送り",
     href: "/messages",
     icon: (

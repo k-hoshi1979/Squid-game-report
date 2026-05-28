@@ -78,6 +78,15 @@ export interface ReportData {
 
   operationNotes: string;   // 運営所感
   irregularReport: string;  // イレギュラー報告
+
+  /** SNS投稿（運営所感の前） */
+  snsPost: {
+    circleCount: number;  // 〇
+    squareCount: number;  // ▢
+    totalCount: number;   // 合計（〇＋▢）
+  };
+
+  lostAndFound: string;     // 落とし物取得
 }
 
 export interface CsvTicketRow {
@@ -118,6 +127,18 @@ export type IbTicketPriceKey = keyof typeof IB_UNIT_PRICE_BY_KEY;
 
 export const JERSEY_RENTAL_UNIT_NORMAL = 1500;
 export const JERSEY_RENTAL_UNIT_SNS = 1000;
+
+export function snsPostWithDefaults(
+  s: Partial<ReportData["snsPost"]> | undefined | null,
+): ReportData["snsPost"] {
+  const circleCount = coerceNum(s?.circleCount);
+  const squareCount = coerceNum(s?.squareCount);
+  return {
+    circleCount,
+    squareCount,
+    totalCount: circleCount + squareCount,
+  };
+}
 
 export function jerseyRentalWithDefaults(
   j: Partial<ReportData["jerseyRental"]> | undefined | null,
@@ -202,6 +223,8 @@ export function sanitizeReportForForm(raw: ReportData): ReportData {
     reporter: typeof raw.reporter === "string" ? raw.reporter : "",
     operationNotes: typeof raw.operationNotes === "string" ? raw.operationNotes : "",
     irregularReport: typeof raw.irregularReport === "string" ? raw.irregularReport : "",
+    snsPost: snsPostWithDefaults(raw.snsPost),
+    lostAndFound: typeof raw.lostAndFound === "string" ? raw.lostAndFound : "",
     tokuten: {
       prevRemaining: coerceNum(t?.prevRemaining),
       todayRemaining: coerceNum(t?.todayRemaining),

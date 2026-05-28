@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { ReportStatusBadge } from "@/components/dashboard/ReportStatusBadge";
-import { parseReportContent, ibTicketsWithDefaults, jerseyRentalWithDefaults } from "@/types/report";
+import { parseReportContent, ibTicketsWithDefaults, jerseyRentalWithDefaults, snsPostWithDefaults } from "@/types/report";
 import type { ReportData } from "@/types/report";
 import { DeleteReportButton } from "@/components/reports/DeleteReportButton";
 import { ConfirmReportButton } from "@/components/reports/ConfirmReportButton";
@@ -160,6 +160,20 @@ function StructuredReport({ data }: { data: ReportData }) {
         </div>
       </Card>
 
+      {(() => {
+        const sns = snsPostWithDefaults(data.snsPost);
+        if (sns.circleCount === 0 && sns.squareCount === 0) return null;
+        return (
+          <Card title="■ SNS投稿">
+            <Row label="〇" value={`${fmt(sns.circleCount)}枚`} />
+            <Row label="▢" value={`${fmt(sns.squareCount)}枚`} />
+            <div className="mt-1 pt-1 border-t border-[var(--border)]">
+              <Row label="合計" value={`${fmt(sns.totalCount)}枚`} highlight />
+            </div>
+          </Card>
+        );
+      })()}
+
       {data.operationNotes && (
         <Card title="■ 運営所感">
           <p className="text-sm py-2 whitespace-pre-wrap text-[var(--foreground)]">{data.operationNotes}</p>
@@ -168,6 +182,11 @@ function StructuredReport({ data }: { data: ReportData }) {
       {data.irregularReport && (
         <Card title="■ イレギュラー報告">
           <p className="text-sm py-2 whitespace-pre-wrap text-[var(--foreground)]">{data.irregularReport}</p>
+        </Card>
+      )}
+      {data.lostAndFound && (
+        <Card title="■ 落とし物取得">
+          <p className="text-sm py-2 whitespace-pre-wrap text-[var(--foreground)]">{data.lostAndFound}</p>
         </Card>
       )}
     </div>

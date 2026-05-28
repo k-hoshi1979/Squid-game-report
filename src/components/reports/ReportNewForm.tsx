@@ -8,6 +8,7 @@ import {
   IB_UNIT_PRICE_BY_KEY,
   ibTicketsWithDefaults,
   jerseyRentalWithDefaults,
+  snsPostWithDefaults,
   JERSEY_RENTAL_UNIT_NORMAL,
   JERSEY_RENTAL_UNIT_SNS,
 } from "@/types/report";
@@ -276,8 +277,15 @@ export function ReportNewForm({
   });
 
   // テキスト
+  const [snsCircleCount, setSnsCircleCount] = useState(
+    () => initialData?.snsPost?.circleCount ?? 0,
+  );
+  const [snsSquareCount, setSnsSquareCount] = useState(
+    () => initialData?.snsPost?.squareCount ?? 0,
+  );
   const [operationNotes,  setOperationNotes]  = useState(initialData?.operationNotes ?? "");
   const [irregularReport, setIrregularReport] = useState(initialData?.irregularReport ?? "");
+  const [lostAndFound, setLostAndFound] = useState(initialData?.lostAndFound ?? "");
 
   // refs（uncontrolled inputs）
   const tokutenPrevRef    = useRef<HTMLInputElement>(null);
@@ -376,6 +384,11 @@ export function ReportNewForm({
   }, [csvData, tokuten, vip]);
 
   // レポートデータ
+  const snsPost = useMemo(
+    () => snsPostWithDefaults({ circleCount: snsCircleCount, squareCount: snsSquareCount }),
+    [snsCircleCount, snsSquareCount],
+  );
+
   const reportData: ReportData = useMemo(() => ({
     version: 1, date, reporter,
     csv: csvData ? { eventName: csvData.eventName, venue: csvData.venue, datetimes: csvData.datetimes, groups: csvData.groups, rows: csvData.rows, totalCount: csvData.totalCount, totalAmount: csvData.totalAmount } : null,
@@ -397,7 +410,9 @@ export function ReportNewForm({
       totalCount: ibTickets.totalCount, totalAmount: ibTickets.totalAmount,
     },
     operationNotes, irregularReport,
-  }), [date, reporter, csvData, tokuten, vip, ticketTotal, retail, jersey, ibTickets, operationNotes, irregularReport]);
+    snsPost,
+    lostAndFound,
+  }), [date, reporter, csvData, tokuten, vip, ticketTotal, retail, jersey, ibTickets, snsPost, operationNotes, irregularReport, lostAndFound]);
 
   // ─── 送信ハンドラ（formなし・useTransition） ──────────
   /** 入力欄が uncontrolled のため、保存直前は ref の現値で上書き（確定ボタンを押し忘れても反映される） */
@@ -757,6 +772,47 @@ export function ReportNewForm({
         )}
       </Card>
 
+      {/* ── SNS投稿 ── */}
+      <Card title="■ SNS投稿">
+        <div className="space-y-3 pl-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm text-[var(--foreground)] w-16 shrink-0">〇</span>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min="0"
+                value={snsCircleCount || ""}
+                onChange={(e) => setSnsCircleCount(toNum(e.target.value))}
+                placeholder="0"
+                className="w-24 px-3 py-1.5 border border-[var(--border)] rounded-lg text-sm bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-right tabular-nums"
+              />
+              <span className="text-xs text-[var(--muted-foreground)]">枚</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm text-[var(--foreground)] w-16 shrink-0">▢</span>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min="0"
+                value={snsSquareCount || ""}
+                onChange={(e) => setSnsSquareCount(toNum(e.target.value))}
+                placeholder="0"
+                className="w-24 px-3 py-1.5 border border-[var(--border)] rounded-lg text-sm bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-right tabular-nums"
+              />
+              <span className="text-xs text-[var(--muted-foreground)]">枚</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap pt-1 border-t border-[var(--border)]/60">
+            <span className="text-sm font-medium text-[var(--foreground)] w-16 shrink-0">合計</span>
+            <span className="text-sm font-bold text-[var(--primary)] tabular-nums">
+              {fmt(snsPost.totalCount)}枚
+            </span>
+            <span className="text-xs text-[var(--muted-foreground)]">（〇＋▢）</span>
+          </div>
+        </div>
+      </Card>
+
       {/* ── 運営所感 / イレギュラー報告 ── */}
       <Card title="■ 運営所感 / イレギュラー報告">
         <div className="space-y-3">
@@ -777,6 +833,17 @@ export function ReportNewForm({
             />
           </div>
         </div>
+      </Card>
+
+      {/* ── 落とし物取得 ── */}
+      <Card title="■ 落とし物取得">
+        <textarea
+          rows={3}
+          value={lostAndFound}
+          onChange={(e) => setLostAndFound(e.target.value)}
+          placeholder="落とし物の内容を記入してください"
+          className="w-full px-3 py-2 border border-[var(--border)] rounded-lg text-sm bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-y"
+        />
       </Card>
 
       {/* ── 報告書プレビュー ── */}
@@ -917,6 +984,19 @@ function ReportPreview({ data }: { data: ReportData }) {
         <PRow label="IB合計" value={`${fmt(data.ibTickets.totalCount)}枚`} sub={`¥${fmt(data.ibTickets.totalAmount)}`} bold />
       </PBlock>
 
+      {(() => {
+        const sns = snsPostWithDefaults(data.snsPost);
+        return (
+          (sns.circleCount > 0 || sns.squareCount > 0) && (
+            <PBlock title="■ SNS投稿">
+              <PRow label="〇" value={`${fmt(sns.circleCount)}枚`} />
+              <PRow label="▢" value={`${fmt(sns.squareCount)}枚`} />
+              <PRow label="合計" value={`${fmt(sns.totalCount)}枚`} bold />
+            </PBlock>
+          )
+        );
+      })()}
+
       {data.operationNotes && (
         <PBlock title="■ 運営所感">
           <p className="text-sm py-1.5 whitespace-pre-wrap">{data.operationNotes}</p>
@@ -925,6 +1005,11 @@ function ReportPreview({ data }: { data: ReportData }) {
       {data.irregularReport && (
         <PBlock title="■ イレギュラー報告">
           <p className="text-sm py-1.5 whitespace-pre-wrap">{data.irregularReport}</p>
+        </PBlock>
+      )}
+      {data.lostAndFound && (
+        <PBlock title="■ 落とし物取得">
+          <p className="text-sm py-1.5 whitespace-pre-wrap">{data.lostAndFound}</p>
         </PBlock>
       )}
     </div>
