@@ -1,5 +1,5 @@
 import type { ReportData } from "@/types/report";
-import { ticketTotalTaxEx } from "@/lib/tax";
+import { taxExFromTaxIn } from "@/lib/tax";
 
 export interface MallProPurchaseRow {
   count: number;
@@ -39,21 +39,25 @@ export function buildMallProData(
   reportDate: string,
   data: ReportData,
 ): MallProExportData {
+  const ticketTaxEx = taxExFromTaxIn(data.csv?.totalAmount ?? 0);
+  const tokutenTaxEx = taxExFromTaxIn(data.tokuten?.amount ?? 0);
+  const vipTaxEx = taxExFromTaxIn(data.kashikiriVip?.amount ?? 0);
+
   return {
     reportDate,
     reportDateLabel: formatReportDateJa(reportDate),
     ticketPurchase: {
       count: data.csv?.totalCount ?? 0,
-      amount: data.csv?.totalAmount ?? 0,
+      amount: ticketTaxEx,
     },
     tokutenPurchase: {
       count: data.tokuten?.salesCount ?? 0,
-      amount: data.tokuten?.amount ?? 0,
+      amount: tokutenTaxEx,
     },
     vipPurchase: {
       count: data.kashikiriVip?.salesCount ?? 0,
-      amount: data.kashikiriVip?.amount ?? 0,
+      amount: vipTaxEx,
     },
-    totalTaxEx: ticketTotalTaxEx(data.ticketTotal),
+    totalTaxEx: ticketTaxEx + tokutenTaxEx + vipTaxEx,
   };
 }
