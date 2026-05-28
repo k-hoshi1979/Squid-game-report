@@ -206,6 +206,9 @@ export async function GET(request: NextRequest) {
   const period   = searchParams.get("period")   ?? "monthly";
   const baseDate = searchParams.get("date")     ?? localDateStr(new Date());
   const format   = searchParams.get("format")   ?? "summary";
+  const layoutParam = searchParams.get("layout");
+  const layout =
+    layoutParam === "horizontal" ? "horizontal" : "vertical";
 
   const { start, end, label } = getDateRange(period, baseDate);
 
@@ -230,10 +233,10 @@ export async function GET(request: NextRequest) {
 
     const isTicketItems = format === "ticket-items";
     const csv = isTicketItems
-      ? buildTicketExportCsv(reports ?? [])
+      ? buildTicketExportCsv(reports ?? [], layout)
       : generateCsv(reports ?? []);
     const filename = isTicketItems
-      ? `daily-reports-ticket-items-${label}.csv`
+      ? `daily-reports-jisseki-${label}.csv`
       : `daily-reports-${label}.csv`;
 
     return new NextResponse(csv, {

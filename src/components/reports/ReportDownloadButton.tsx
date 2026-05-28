@@ -4,6 +4,7 @@ import { useState } from "react";
 
 type Period = "daily" | "weekly" | "monthly";
 type ExportFormat = "summary" | "ticket-items";
+type ExportLayout = "vertical" | "horizontal";
 
 const PERIOD_TABS: { id: Period; label: string; desc: string }[] = [
   { id: "daily",   label: "日別",  desc: "指定日1日分" },
@@ -13,7 +14,16 @@ const PERIOD_TABS: { id: Period; label: string; desc: string }[] = [
 
 const FORMAT_TABS: { id: ExportFormat; label: string; desc: string }[] = [
   { id: "summary",      label: "日報サマリー", desc: "特典・リテール・IB等を含む全体" },
-  { id: "ticket-items", label: "抽出項目", desc: "CSV取込データを82項目（受付名×販売区分）で出力" },
+  {
+    id: "ticket-items",
+    label: "実績管理表",
+    desc: "B21〜B100 の80項目＋リテール・ジャージ・IB（Excel へコピペ向け）",
+  },
+];
+
+const LAYOUT_TABS: { id: ExportLayout; label: string; desc: string }[] = [
+  { id: "vertical",   label: "縦並び", desc: "「値」列をコピーして実績管理表に貼り付け" },
+  { id: "horizontal", label: "横並び", desc: "1日1行（月間一括向け）" },
 ];
 
 function todayStr() {
@@ -23,8 +33,9 @@ function todayStr() {
 }
 
 export function ReportDownloadButton() {
-  const [period, setPeriod]       = useState<Period>("monthly");
+  const [period, setPeriod]       = useState<Period>("daily");
   const [format, setFormat]       = useState<ExportFormat>("ticket-items");
+  const [layout, setLayout]       = useState<ExportLayout>("vertical");
   const [baseDate, setBaseDate]   = useState(todayStr());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]         = useState<string | null>(null);
@@ -34,15 +45,21 @@ export function ReportDownloadButton() {
     setError(null);
 
     try {
-      const url = `/api/reports/download?period=${period}&date=${baseDate}&format=${format}`;
-      const res = await fetch(url);
+      const params = new URLSearchParams({
+        period,
+        date: baseDate,
+        format,
+      });
+      if (format === "ticket-items") {
+        params.set("layout", layout);
+      }
+      const res = await fetch(`/api/reports/download?${params}`);
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `HTTP ${res.status}`);
       }
 
-      // Content-Disposition からファイル名を取得
       const disposition = res.headers.get("Content-Disposition") ?? "";
       const match = disposition.match(/filename\*?=(?:UTF-8'')?([^;\r\n"]+)/i);
       const rawName = match?.[1] ?? "daily-reports.csv";
@@ -66,6 +83,7 @@ export function ReportDownloadButton() {
 
   const activeTab = PERIOD_TABS.find((t) => t.id === period)!;
   const activeFormat = FORMAT_TABS.find((t) => t.id === format)!;
+  const activeLayout = LAYOUT_TABS.find((t) => t.id === layout)!;
 
   return (
     <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm">
@@ -97,6 +115,28 @@ export function ReportDownloadButton() {
         </div>
         <p className="mt-1.5 text-xs text-[var(--muted-foreground)]">{activeFormat.desc}</p>
       </div>
+
+      {format === "ticket-items" && (
+        <div className="mb-4">
+          <p className="text-xs text-[var(--muted-foreground)] mb-2">レイアウト</p>
+          <div className="flex items-center gap-1 p-1 bg-[var(--muted)] rounded-lg w-fit flex-wrap">
+            {LAYOUT_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setLayout(tab.id)}
+                className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-all ${
+                  layout === tab.id
+                    ? "bg-[var(--card)] text-[var(--foreground)] shadow-sm"
+                    : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-[var(--muted-foreground)]">{activeLayout.desc}</p>
+        </div>
+      )}
 
       {/* 期間タブ */}
       <div className="flex items-center gap-1 p-1 bg-[var(--muted)] rounded-lg mb-4 w-fit">
@@ -159,8 +199,14 @@ export function ReportDownloadButton() {
         <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>
       )}
 
-      <p className="mt-3 text-xs text-[var(--muted-foreground)]">
-        ※ Excel で開く場合はそのままダブルクリックで文字化けなく表示されます（UTF-8 BOM付き）
+      {format === "ticket-items" && layout === "vertical" && (
+        <p className="mt-3 text-xs text-[var(--muted-foreground)]">
+          ※ Excel で開き、B列の「値」（80行）をコピー → 実績管理表の該当日列（B21 起点）に貼り付け。続く17行はリテール・ジャージ・IB 用です。
+        </p>
+      )}
+
+      <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+        ※ UTF-8 BOM 付きのため Excel で文字化けしません
       </p>
     </div>
   );

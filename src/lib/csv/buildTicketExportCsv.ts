@@ -1,6 +1,16 @@
 import type { DailyReport } from "@/types/database";
-import { parseReportContent } from "@/types/report";
-import { TICKET_EXPORT_COLUMNS } from "@/lib/csv/ticketExportColumns";
+import {
+  parseReportContent,
+  ibTicketsWithDefaults,
+  jerseyRentalWithDefaults,
+  type ReportData,
+} from "@/types/report";
+import {
+  APPEND_EXPORT_FIELDS,
+  EXCEL_TICKET_LABELS,
+} from "@/lib/csv/excelExportSpec";
+
+export type TicketExportLayout = "vertical" | "horizontal";
 
 function escapeCsv(v: string | number | null | undefined): string {
   const s = String(v ?? "");
@@ -10,52 +20,176 @@ function escapeCsv(v: string | number | null | undefined): string {
   return s;
 }
 
-/** 受付名・販売区分の表記ゆれを吸収する */
-function normalizeKey(s: string): string {
-  return s.trim().replace(/\s+/g, " ");
+/** 販売区分名の表記ゆれを吸収（全角数字・スペース・VIP表記など） */
+export function normalizeTicketLabel(s: string): string {
+  return s
+    .trim()
+    .replace(/\u3000/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/[０-９]/g, (c) =>
+      String.fromCharCode(c.charCodeAt(0) - 0xfee0),
+    )
+    .replace(/[（]/g, "（")
+    .replace(/[）]/g, "）")
+    .replace(/VIP/gi, "ＶＩＰ")
+    .replace(/ＶＩＰ/g, "ＶＩＰ");
 }
 
-function buildLookupMap(
-  rows: { receptionName: string; ticketType: string; count: number }[],
-): Map<string, number> {
-  const map = new Map<string, number>();
-  for (const row of rows) {
-    const key = `${normalizeKey(row.receptionName)}||${normalizeKey(row.ticketType)}`;
-    map.set(key, (map.get(key) ?? 0) + row.count);
-  }
-  return map;
+const NORMALIZED_EXCEL_LABELS = EXCEL_TICKET_LABELS.map(normalizeTicketLabel);
+
+function labelIndex(label: string): number {
+  const n = normalizeTicketLabel(label);
+  return NORMALIZED_EXCEL_LABELS.indexOf(n);
 }
 
-function lookupCount(
-  map: Map<string, number>,
+/** CSV行が実績管理表 B21:B100 のどの行に該当するか */
+function mapCsvRowToLabelIndex(
   receptionName: string,
   ticketType: string,
 ): number {
-  const key = `${normalizeKey(receptionName)}||${normalizeKey(ticketType)}`;
-  return map.get(key) ?? 0;
+  const rec = normalizeTicketLabel(receptionName);
+  const typ = normalizeTicketLabel(ticketType);
+
+  const candidates = [
+    typ,
+    normalizeTicketLabel(`${rec} ${typ}`),
+    normalizeTicketLabel(`${rec}　${typ}`),
+    normalizeTicketLabel(`${rec}${typ}`),
+  ];
+
+  for (const c of candidates) {
+    const idx = NORMALIZED_EXCEL_LABELS.indexOf(c);
+    if (idx >= 0) return idx;
+  }
+
+  return -1;
 }
 
-/** 日報1件分のデータ行（先頭に日付・報告者） */
-function buildReportRow(report: DailyReport): (string | number)[] {
+function buildTicketCounts(
+  rows: { receptionName: string; ticketType: string; count: number }[],
+): number[] {
+  const counts = Array<number>(EXCEL_TICKET_LABELS.length).fill(0);
+
+  for (const row of rows) {
+    const idx = mapCsvRowToLabelIndex(row.receptionName, row.ticketType);
+    if (idx >= 0) counts[idx] += row.count;
+  }
+
+  return counts;
+}
+
+function buildAppendValues(data: ReportData | null): number[] {
+  const retail = data?.retail;
+  const jersey = jerseyRentalWithDefaults(data?.jerseyRental);
+  const ib = ibTicketsWithDefaults(data?.ibTickets);
+
+  return [
+    retail?.salesTaxEx ?? 0,
+    retail?.salesTaxIn ?? 0,
+    retail?.paymentCount ?? 0,
+    jersey.normalCount,
+    jersey.snsCount,
+    jersey.totalAmount,
+    ib.genWeekday.count,
+    ib.genHoliday.count,
+    ib.childWeekday.count,
+    ib.childHoliday.count,
+    ib.genVipWeekday.count,
+    ib.genVipHoliday.count,
+    ib.childVipWeekday.count,
+    ib.childVipHoliday.count,
+    ib.vip.count,
+    ib.totalCount,
+    ib.totalAmount,
+  ];
+}
+
+export interface TicketExportRow {
+  date: string;
+  reporter: string;
+  ticketCounts: number[];
+  appendValues: number[];
+}
+
+export function buildTicketExportRow(report: DailyReport): TicketExportRow {
   const data = parseReportContent(report.content);
-  const lookup = buildLookupMap(data?.csv?.rows ?? []);
-
-  const values = TICKET_EXPORT_COLUMNS.map((col) =>
-    lookupCount(lookup, col.receptionName, col.ticketType),
-  );
-
-  return [report.report_date, data?.reporter ?? "", ...values];
+  return {
+    date: report.report_date,
+    reporter: data?.reporter ?? "",
+    ticketCounts: buildTicketCounts(data?.csv?.rows ?? []),
+    appendValues: buildAppendValues(data),
+  };
 }
 
-/** チケット項目82列形式のCSV文字列（UTF-8 BOM付き） */
-export function buildTicketExportCsv(reports: DailyReport[]): string {
+/** 縦並び（Excel へ値列をコピペしやすい形式） */
+function buildVerticalCsv(rows: TicketExportRow[]): string {
+  const lines: string[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (i > 0) lines.push("");
+
+    lines.push([escapeCsv("日付"), escapeCsv(row.date)].join(","));
+    lines.push([escapeCsv("報告者"), escapeCsv(row.reporter)].join(","));
+    lines.push([escapeCsv("項目"), escapeCsv("値")].join(","));
+
+    for (let j = 0; j < EXCEL_TICKET_LABELS.length; j++) {
+      lines.push(
+        [escapeCsv(EXCEL_TICKET_LABELS[j]), escapeCsv(row.ticketCounts[j])].join(
+          ",",
+        ),
+      );
+    }
+
+    let currentSection = "";
+    for (let k = 0; k < APPEND_EXPORT_FIELDS.length; k++) {
+      const field = APPEND_EXPORT_FIELDS[k];
+      if (field.section !== currentSection) {
+        currentSection = field.section;
+        lines.push([escapeCsv(field.section), ""].join(","));
+      }
+      lines.push(
+        [escapeCsv(field.header), escapeCsv(row.appendValues[k])].join(","),
+      );
+    }
+  }
+
+  return "\uFEFF" + lines.join("\r\n");
+}
+
+/** 横並び（1日1行・月間一括向け） */
+function buildHorizontalCsv(rows: TicketExportRow[]): string {
   const headers = [
     "日付",
     "報告者",
-    ...TICKET_EXPORT_COLUMNS.map((c) => c.header),
+    ...EXCEL_TICKET_LABELS,
+    ...APPEND_EXPORT_FIELDS.map((f) => f.header),
   ];
 
-  const rows = reports.map((r) => buildReportRow(r).map(escapeCsv).join(","));
+  const dataLines = rows.map((row) =>
+    [
+      row.date,
+      row.reporter,
+      ...row.ticketCounts,
+      ...row.appendValues,
+    ]
+      .map(escapeCsv)
+      .join(","),
+  );
 
-  return "\uFEFF" + [headers.map(escapeCsv).join(","), ...rows].join("\r\n");
+  return (
+    "\uFEFF" +
+    [headers.map(escapeCsv).join(","), ...dataLines].join("\r\n")
+  );
+}
+
+/** 実績管理表向け CSV（UTF-8 BOM付き） */
+export function buildTicketExportCsv(
+  reports: DailyReport[],
+  layout: TicketExportLayout = "vertical",
+): string {
+  const rows = reports.map(buildTicketExportRow);
+  return layout === "horizontal"
+    ? buildHorizontalCsv(rows)
+    : buildVerticalCsv(rows);
 }
