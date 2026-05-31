@@ -1,5 +1,5 @@
-/** 実績管理表 May_ シート B21:B100 の項目（Excel と同順） */
-export const EXCEL_TICKET_LABELS: readonly string[] = [
+/** 実績管理表 May_ シート B21:B100 の項目（Excel と同順・80項目） */
+const TICKET_LABELS_B21_B100: readonly string[] = [
   "一般（１９歳以上）",
   "こども（１９歳未満）",
   "ＶＩＰ一般",
@@ -80,6 +80,21 @@ export const EXCEL_TICKET_LABELS: readonly string[] = [
   "日旅　ＶＩＰ一般車いす",
   "日旅　ＶＩＰこども車いす",
   "日旅　貸切",
+] as const;
+
+/**
+ * ★売止用受付 → 実績管理表の売止ブロック（一般と同型19項目・B106 付近）
+ * 販売区分（H列）は一般発売と同じ名称を使用
+ */
+export const URIDOME_TICKET_LABELS: readonly string[] = TICKET_LABELS_B21_B100.slice(
+  0,
+  19,
+).map((label) => `売止　${label}`);
+
+/** チケット集計・項目一覧・CSV出力で使う全ラベル（80 + 売止19） */
+export const EXCEL_TICKET_LABELS: readonly string[] = [
+  ...TICKET_LABELS_B21_B100,
+  ...URIDOME_TICKET_LABELS,
 ];
 
 export interface AppendExportField {

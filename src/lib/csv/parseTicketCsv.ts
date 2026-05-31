@@ -8,7 +8,7 @@ const COL = {
   RECEPTION: 4,   // 受付名 (E列)
   TICKET_TYPE: 7, // 販売区分名 (H列)
   PRICE: 8,       // 料金 (I列)
-  CONFIRMED: 10,  // 購入確定数 (K列)
+  CONFIRMED: 10,  // 購入確定数 (K列) ※売止用受付も同列を使用（O列残枚数は使わない）
 } as const;
 
 export interface TicketSummaryRow {

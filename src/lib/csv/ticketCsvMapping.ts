@@ -3,7 +3,7 @@ import { normalizeTicketLabel } from "@/lib/csv/normalizeTicketLabel";
 
 /** 受付名（E列）→ カテゴリ。先にマッチしたルールを採用 */
 const RECEPTION_RULES: { pattern: RegExp; category: TicketCategory | "skip" }[] = [
-  { pattern: /売止/, category: "skip" },
+  { pattern: /売止/, category: "uridome" },
   { pattern: /５００円割引ＩＢ|500.*割引.*IB/i, category: "discount500ib" },
   { pattern: /５００円割引|500.*割引/i, category: "discount500" },
   { pattern: /インバウンド|inbound|in-bound/i, category: "ib" },
@@ -31,6 +31,9 @@ const EXCEL_LABEL_OVERRIDES: Partial<
   general: {
     "アフター5（こども）": "アフター５（こども）車いす",
   },
+  uridome: {
+    "アフター5（こども）": "売止　アフター５（こども）車いす",
+  },
   ib: {
     貸切: "貸切インバウンド",
     "アフター5（一般）": "IBアフター５（一般）",
@@ -56,6 +59,7 @@ const CATEGORY_LABEL_PREFIX: Record<
   inner: "インナー　",
   dentsu: "電通　",
   nta: "日旅　",
+  uridome: "売止　",
 };
 
 export function categoryFromReceptionName(
@@ -94,8 +98,12 @@ function buildExcelLabel(
 
 /**
  * 受付名＋販売区分から実績管理表 B 列ラベル（完全一致用文字列）を組み立てる。
- * マッチ不可の場合は null（売止受付など）。
+ * マッチ不可の場合は null。
  */
+export function isUridomeReception(receptionName: string): boolean {
+  return categoryFromReceptionName(receptionName) === "uridome";
+}
+
 export function resolveExcelLabel(
   receptionName: string,
   ticketType: string,

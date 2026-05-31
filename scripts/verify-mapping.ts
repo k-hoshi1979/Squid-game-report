@@ -31,6 +31,8 @@ for (const label of [
   "貸切インバウンド",
   "IBアフター５（一般）",
   "電通　貸切",
+  "売止　貸切",
+  "売止　一般（１９歳以上）",
 ]) {
   const idx = EXCEL_TICKET_LABELS.indexOf(label);
   console.log(label, counts[idx] ?? 0);

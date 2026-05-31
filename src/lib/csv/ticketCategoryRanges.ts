@@ -6,7 +6,8 @@ export type TicketCategory =
   | "discount500ib"
   | "inner"
   | "dentsu"
-  | "nta";
+  | "nta"
+  | "uridome";
 
 export interface TicketCategoryRange {
   id: TicketCategory;
@@ -25,6 +26,7 @@ export const TICKET_CATEGORY_RANGES: readonly TicketCategoryRange[] = [
   { id: "inner",         start: 54, end: 61 },
   { id: "dentsu",        start: 62, end: 70 },
   { id: "nta",           start: 71, end: 79 },
+  { id: "uridome",       start: 80, end: 98 },
 ];
 
 export function categoryByIndex(index: number): TicketCategory | null {
