@@ -25,12 +25,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const activeStatus = (status as ReportStatus | "all") ?? "all";
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
   let query = supabase
     .from("daily_reports")
     .select("*")
-    .eq("user_id", user!.id)
     .order("report_date", { ascending: false });
 
   if (activeStatus !== "all") {

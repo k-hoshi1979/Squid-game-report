@@ -74,7 +74,6 @@ export async function updateMessage(id: string, formData: FormData) {
     .from("messages")
     .select("content, category")
     .eq("id", id)
-    .eq("user_id", user.id)
     .is("deleted_at", null)
     .single();
 
@@ -85,8 +84,7 @@ export async function updateMessage(id: string, formData: FormData) {
   const { error } = await db
     .from("messages")
     .update({ category, content })
-    .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("id", id);
 
   if (error) throw new Error(error.message);
 
@@ -110,7 +108,6 @@ export async function deleteMessage(id: string) {
     .from("messages")
     .select("content, category")
     .eq("id", id)
-    .eq("user_id", user.id)
     .is("deleted_at", null)
     .single();
 
@@ -131,8 +128,7 @@ export async function deleteMessage(id: string) {
   const { error: delErr } = await db
     .from("messages")
     .update({ deleted_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("id", id);
   if (delErr) throw new Error(delErr.message);
 
   revalidatePath("/messages");

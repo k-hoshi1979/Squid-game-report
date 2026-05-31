@@ -27,6 +27,20 @@ function formatCell(value: number | undefined): string {
   return new Intl.NumberFormat("ja-JP").format(value);
 }
 
+/** 表示中の日付列を横断した合計（通期合計） */
+function sumAcrossDays(
+  days: string[],
+  valuesByDate: Record<string, number[]>,
+  valueIndex: number,
+): number {
+  let sum = 0;
+  for (const date of days) {
+    const value = valuesByDate[date]?.[valueIndex];
+    if (value !== undefined) sum += value;
+  }
+  return sum;
+}
+
 function buildItemsUrl(yearMonth: string, sectionId: ItemListSectionId): string {
   return `/items?month=${yearMonth}&section=${sectionId}`;
 }
@@ -79,7 +93,7 @@ export function ItemListTable({
         </div>
         <p className="text-xs text-[var(--muted-foreground)]">
           {section.kind === "numeric"
-            ? "項目を縦軸、日付（昇順）を横軸に表示しています。"
+            ? "項目を縦軸、通期合計（当月）と日付（昇順）を横軸に表示しています。"
             : "日付（昇順）ごとにテキストを表示しています。"}
         </p>
       </div>
@@ -147,6 +161,9 @@ function NumericSectionTable({
             <th className="sticky left-0 z-20 bg-[var(--muted)] text-left px-3 py-2 font-semibold text-[var(--foreground)] min-w-[12rem] max-w-[20rem] border-r border-[var(--border)]">
               項目
             </th>
+            <th className="sticky left-[12rem] z-20 bg-[var(--muted)] px-2 py-2 text-center font-semibold text-[var(--foreground)] min-w-[4.5rem] whitespace-nowrap border-r border-[var(--border)]">
+              通期合計
+            </th>
             {days.map((date) => (
               <th
                 key={date}
@@ -168,6 +185,9 @@ function NumericSectionTable({
               >
                 <td className="sticky left-0 z-10 bg-[var(--card)] px-3 py-1.5 text-xs text-[var(--foreground)] border-r border-[var(--border)] max-w-[20rem]">
                   {label}
+                </td>
+                <td className="sticky left-[12rem] z-10 bg-[var(--card)] px-2 py-1.5 text-right tabular-nums text-xs font-semibold text-[var(--primary)] border-r border-[var(--border)]">
+                  {formatCell(sumAcrossDays(days, valuesByDate, valueIndex))}
                 </td>
                 {days.map((date) => {
                   const values = valuesByDate[date];

@@ -23,7 +23,6 @@ export async function confirmReport(id: string, confirmerName: string) {
       confirmed_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .eq("user_id", user.id)
     .in("status", ["submitted", "revised"]);
 
   if (error) {

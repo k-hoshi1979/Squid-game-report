@@ -198,29 +198,26 @@ async function getDashboardData(): Promise<DashboardData> {
     ] = await Promise.all([
       // 今月
       supabase.from("daily_reports").select("*")
-        .eq("user_id", user.id).gte("report_date", firstOfMonth)
+        .gte("report_date", firstOfMonth)
         .in("status", STATUSES),
       // 今週
       supabase.from("daily_reports").select("*")
-        .eq("user_id", user.id)
         .gte("report_date", thisWeek.start).lte("report_date", thisWeek.end)
         .in("status", STATUSES),
       // 先週
       supabase.from("daily_reports").select("*")
-        .eq("user_id", user.id)
         .gte("report_date", prevWeek.start).lte("report_date", prevWeek.end)
         .in("status", STATUSES),
       // 当日
       supabase.from("daily_reports").select("*")
-        .eq("user_id", user.id).eq("report_date", today)
+        .eq("report_date", today)
         .in("status", STATUSES),
       // 最近5件（全ステータス）
       supabase.from("daily_reports").select("*")
-        .eq("user_id", user.id)
         .order("report_date", { ascending: false }).limit(5),
       // カレンダー用（id 含む）
       supabase.from("daily_reports").select("id, report_date, status")
-        .eq("user_id", user.id).gte("report_date", firstOfMonth)
+        .gte("report_date", firstOfMonth)
         .in("status", STATUSES),
     ]);
 

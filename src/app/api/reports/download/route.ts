@@ -234,7 +234,6 @@ export async function GET(request: NextRequest) {
     const { data: reports, error } = await supabase
       .from("daily_reports")
       .select("*")
-      .eq("user_id", user.id)
       .gte("report_date", start)
       .lte("report_date", end)
       .order("report_date", { ascending: true });

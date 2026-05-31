@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
   const { data: report, error } = await supabase
     .from("daily_reports")
     .select("report_date, content")
-    .eq("user_id", user.id)
     .eq("report_date", date)
     .order("updated_at", { ascending: false })
     .limit(1)

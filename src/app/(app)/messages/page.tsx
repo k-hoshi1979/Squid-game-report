@@ -127,7 +127,6 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
                 key={message.id}
                 message={message}
                 logs={logsMap.get(message.id) ?? []}
-                currentUserId={user!.id}
               />
             ))}
           </div>

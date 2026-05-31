@@ -125,14 +125,12 @@ function DeleteModal({ isDeleting, error, onConfirm, onCancel }: DeleteModalProp
 // ─── MessageCard ─────────────────────────────────────────────
 
 interface MessageCardProps {
-  message:       MessageWithAuthor;
-  logs:          MessageLog[];
-  currentUserId: string;
+  message: MessageWithAuthor;
+  logs:    MessageLog[];
 }
 
-export function MessageCard({ message, logs, currentUserId }: MessageCardProps) {
-  const router   = useRouter();
-  const isOwner  = currentUserId === message.user_id;
+export function MessageCard({ message, logs }: MessageCardProps) {
+  const router = useRouter();
 
   const [isEditing,    setIsEditing]    = useState(false);
   const [showLogs,     setShowLogs]     = useState(false);
@@ -279,29 +277,25 @@ export function MessageCard({ message, logs, currentUserId }: MessageCardProps) 
               変更履歴 ({logs.length})
             </button>
 
-            {isOwner && (
-              <div className="flex items-center gap-1">
-                {/* 編集ボタン */}
-                <button type="button" onClick={() => setIsEditing(true)}
-                  className="p-1.5 rounded-md text-[var(--muted-foreground)] hover:text-[var(--primary)] hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                  title="編集">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => setIsEditing(true)}
+                className="p-1.5 rounded-md text-[var(--muted-foreground)] hover:text-[var(--primary)] hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                title="編集">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
 
-                {/* 削除ボタン → モーダルを開く */}
-                <button type="button" onClick={() => { setDeleteError(null); setShowDeleteModal(true); }}
-                  className="p-1.5 rounded-md text-[var(--muted-foreground)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                  title="削除">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            )}
+              <button type="button" onClick={() => { setDeleteError(null); setShowDeleteModal(true); }}
+                className="p-1.5 rounded-md text-[var(--muted-foreground)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                title="削除">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
           </div>
         )}
 

@@ -199,19 +199,17 @@ function StructuredReport({ data }: { data: ReportData }) {
 export default async function ReportDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
   const { data: report } = await supabase
     .from("daily_reports")
     .select("*")
     .eq("id", id)
-    .eq("user_id", user!.id)
     .single();
 
   if (!report) notFound();
 
   const structured = parseReportContent(report.content);
-  const canEdit    = report.status !== "confirmed";
+  const canEdit    = true;
   const canConfirm = report.status === "submitted" || report.status === "revised";
 
   return (

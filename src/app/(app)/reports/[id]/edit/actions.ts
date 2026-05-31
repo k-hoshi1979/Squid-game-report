@@ -33,6 +33,19 @@ export async function updateReport(
     newStatus = action === "submit" ? "submitted" : "draft";
   }
 
+  const { data: dateConflict } = await supabase
+    .from("daily_reports")
+    .select("id")
+    .eq("report_date", report_date)
+    .neq("id", id)
+    .maybeSingle();
+
+  if (dateConflict) {
+    redirect(
+      `/reports/${id}/edit?error=${encodeURIComponent("この日付の日報が既に存在します。別の日付を選んでください")}`,
+    );
+  }
+
   const { error } = await supabase
     .from("daily_reports")
     .update({
@@ -45,8 +58,7 @@ export async function updateReport(
           ? new Date().toISOString()
           : null,
     })
-    .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("id", id);
 
   if (error) {
     redirect(`/reports/${id}/edit?error=${encodeURIComponent(error.message)}`);
@@ -66,8 +78,7 @@ export async function deleteReport(id: string) {
   const { error } = await supabase
     .from("daily_reports")
     .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("id", id);
 
   if (error) {
     return { error: error.message };

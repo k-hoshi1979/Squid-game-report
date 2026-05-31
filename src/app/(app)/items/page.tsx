@@ -35,12 +35,10 @@ export default async function ItemsPage({ searchParams }: ItemsPageProps) {
   const { start, end, days } = monthDateRange(yearMonth);
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
   const { data: reports, error } = await supabase
     .from("daily_reports")
     .select("report_date, content")
-    .eq("user_id", user!.id)
     .gte("report_date", start)
     .lte("report_date", end)
     .order("report_date", { ascending: true });

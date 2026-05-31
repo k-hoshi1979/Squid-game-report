@@ -153,6 +153,7 @@ export function ReportNewForm({
   error,
   initialData,
   isEdit = false,
+  defaultReportDate,
   prevDayValues,
   retailPrefill,
 }: {
@@ -160,6 +161,7 @@ export function ReportNewForm({
   error?: string;
   initialData?: ReportData;
   isEdit?: boolean;
+  defaultReportDate?: string;
   prevDayValues?: { tokutenPrev: number; vipPrev: number; reportDate: string };
   retailPrefill?: RetailReportPrefill;
 }) {
@@ -172,7 +174,9 @@ export function ReportNewForm({
       : null;
 
   // 基本情報
-  const [date, setDate]         = useState(initialData?.date ?? todayStr());
+  const [date, setDate]         = useState(
+    initialData?.date ?? defaultReportDate ?? todayStr(),
+  );
   const [reporter, setReporter] = useState(initialData?.reporter ?? "");
 
   // CSV

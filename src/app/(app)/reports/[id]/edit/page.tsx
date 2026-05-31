@@ -27,15 +27,9 @@ export default async function ReportEditPage({ params, searchParams }: Props) {
     .from("daily_reports")
     .select("*")
     .eq("id", id)
-    .eq("user_id", user.id)
     .single();
 
   if (!report) notFound();
-
-  // 確認済みは編集不可
-  if (report.status === "confirmed") {
-    redirect(`/reports/${id}`);
-  }
 
   const reportStatus = report.status;
 

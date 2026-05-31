@@ -88,8 +88,6 @@ export async function DELETE(
 
       .eq("id", id)
 
-      .eq("user_id", user.id)
-
       .is("deleted_at", null)
 
       .maybeSingle();
@@ -170,9 +168,7 @@ export async function DELETE(
 
       .update({ deleted_at: new Date().toISOString() })
 
-      .eq("id", id)
-
-      .eq("user_id", user.id);
+      .eq("id", id);
 
 
 
@@ -312,8 +308,6 @@ export async function PATCH(
 
       .eq("id", id)
 
-      .eq("user_id", user.id)
-
       .is("deleted_at", null)
 
       .maybeSingle();
@@ -364,9 +358,7 @@ export async function PATCH(
 
       .update({ category: cat, content })
 
-      .eq("id", id)
-
-      .eq("user_id", user.id);
+      .eq("id", id);
 
 
 

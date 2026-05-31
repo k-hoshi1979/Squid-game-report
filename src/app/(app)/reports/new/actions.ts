@@ -21,6 +21,18 @@ export async function createReport(formData: FormData) {
     redirect("/reports/new?error=タイトル・内容・日付は必須です");
   }
 
+  const { data: existing } = await supabase
+    .from("daily_reports")
+    .select("id")
+    .eq("report_date", report_date)
+    .maybeSingle();
+
+  if (existing) {
+    redirect(
+      `/reports/${existing.id}/edit?error=${encodeURIComponent("この日付の日報は既にあります。編集画面で更新してください")}`,
+    );
+  }
+
   const { data, error } = await supabase
     .from("daily_reports")
     .insert({
@@ -35,6 +47,16 @@ export async function createReport(formData: FormData) {
     .single();
 
   if (error) {
+    if (error.code === "23505") {
+      const { data: dup } = await supabase
+        .from("daily_reports")
+        .select("id")
+        .eq("report_date", report_date)
+        .maybeSingle();
+      if (dup) {
+        redirect(`/reports/${dup.id}/edit`);
+      }
+    }
     redirect(`/reports/new?error=${encodeURIComponent(error.message)}`);
   }
 
