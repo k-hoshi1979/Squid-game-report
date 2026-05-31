@@ -2,12 +2,14 @@ import { createClient } from "@/lib/supabase/server";
 import {
   ibTicketsWithDefaults,
   jerseyRentalWithDefaults,
+  snsPostWithDefaults,
   type ReportData,
 } from "@/types/report";
 
 export type RetailReportPrefill = {
   jerseyRental: ReportData["jerseyRental"];
   ibTickets: ReportData["ibTickets"];
+  snsPost: ReportData["snsPost"];
 };
 
 /** 営業日（JST 0時切り替え） */
@@ -27,6 +29,8 @@ function hasPrefillData(row: {
   ib_child_vip_weekday_count: number | null;
   ib_child_vip_holiday_count: number | null;
   ib_vip_count: number | null;
+  sns_circle_count: number | null;
+  sns_square_count: number | null;
 }): boolean {
   return [
     row.jersey_normal_count,
@@ -40,6 +44,8 @@ function hasPrefillData(row: {
     row.ib_child_vip_weekday_count,
     row.ib_child_vip_holiday_count,
     row.ib_vip_count,
+    row.sns_circle_count,
+    row.sns_square_count,
   ].some((n) => (n ?? 0) > 0);
 }
 
@@ -75,6 +81,10 @@ export async function fetchRetailReportPrefill(
         childVipHoliday: { count: data.ib_child_vip_holiday_count ?? 0 },
         vip: { count: data.ib_vip_count ?? 0 },
       } as Partial<ReportData["ibTickets"]>),
+      snsPost: snsPostWithDefaults({
+        circleCount: data.sns_circle_count ?? 0,
+        squareCount: data.sns_square_count ?? 0,
+      }),
     };
   } catch {
     return null;

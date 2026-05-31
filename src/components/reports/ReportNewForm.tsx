@@ -165,7 +165,11 @@ export function ReportNewForm({
 }) {
   const [isPending, startTransition] = useTransition();
 
-  const initialIbRows = initialData ? ibTicketsWithDefaults(initialData.ibTickets) : null;
+  const initialIbRows = initialData
+    ? ibTicketsWithDefaults(initialData.ibTickets)
+    : retailPrefill
+      ? ibTicketsWithDefaults(retailPrefill.ibTickets)
+      : null;
 
   // 基本情報
   const [date, setDate]         = useState(initialData?.date ?? todayStr());
@@ -279,10 +283,16 @@ export function ReportNewForm({
 
   // テキスト
   const [snsCircleCount, setSnsCircleCount] = useState(
-    () => initialData?.snsPost?.circleCount ?? 0,
+    () =>
+      initialData?.snsPost?.circleCount
+      ?? retailPrefill?.snsPost.circleCount
+      ?? 0,
   );
   const [snsSquareCount, setSnsSquareCount] = useState(
-    () => initialData?.snsPost?.squareCount ?? 0,
+    () =>
+      initialData?.snsPost?.squareCount
+      ?? retailPrefill?.snsPost.squareCount
+      ?? 0,
   );
   const [operationNotes,  setOperationNotes]  = useState(initialData?.operationNotes ?? "");
   const [irregularReport, setIrregularReport] = useState(initialData?.irregularReport ?? "");
@@ -450,7 +460,7 @@ export function ReportNewForm({
 
       {!isEdit && retailPrefill && (
         <div className="px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-200">
-          RETAIL業務アプリの当日データ（ジャージレンタル・IBチケット）を取り込みました
+          RETAIL業務アプリの当日データ（ジャージレンタル・IBチケット・SNS投稿）を取り込みました
         </div>
       )}
 

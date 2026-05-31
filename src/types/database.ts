@@ -27,6 +27,8 @@ export type RetailLogAction =
   | "jersey_cleaned"
   | "ib_ticket_add"
   | "ib_ticket_edit"
+  | "sns_post_add"
+  | "sns_post_edit"
   | "rollback";
 
 export type Database = {
@@ -374,6 +376,27 @@ export type Database = {
         };
         Relationships: [];
       };
+      sns_post_daily_totals: {
+        Row: {
+          business_date: string;
+          circle_count: number;
+          square_count: number;
+          updated_at: string;
+        };
+        Insert: {
+          business_date: string;
+          circle_count?: number;
+          square_count?: number;
+          updated_at?: string;
+        };
+        Update: {
+          business_date?: string;
+          circle_count?: number;
+          square_count?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       ib_ticket_entries: {
         Row: {
           id: string;
@@ -525,6 +548,8 @@ export type Database = {
           ib_child_vip_weekday_count: number | null;
           ib_child_vip_holiday_count: number | null;
           ib_vip_count: number | null;
+          sns_circle_count: number | null;
+          sns_square_count: number | null;
         };
         Relationships: [];
       };
@@ -589,6 +614,24 @@ export type Database = {
         };
         Returns: Tables<"ib_ticket_daily_totals">;
       };
+      add_sns_post_counts: {
+        Args: {
+          p_business_date: string;
+          p_circle_delta: number;
+          p_square_delta: number;
+          p_operator_id: string;
+        };
+        Returns: Tables<"sns_post_daily_totals">;
+      };
+      edit_sns_post_counts: {
+        Args: {
+          p_business_date: string;
+          p_circle_count: number;
+          p_square_count: number;
+          p_operator_id: string;
+        };
+        Returns: Tables<"sns_post_daily_totals">;
+      };
       rollback_retail_operation: {
         Args: { p_log_id: string; p_operator_id: string };
         Returns: Tables<"retail_operation_logs">;
@@ -632,6 +675,7 @@ export type JerseyItem = Tables<"jersey_items">;
 export type JerseyInventory = Tables<"jersey_inventory">;
 export type JerseyRental = Tables<"jersey_rentals">;
 export type IbTicketDailyTotals = Tables<"ib_ticket_daily_totals">;
+export type SnsPostDailyTotals = Tables<"sns_post_daily_totals">;
 export type RetailOperationLog = Tables<"retail_operation_logs">;
 export type JerseyCleaningLog = Tables<"jersey_cleaning_logs">;
 
