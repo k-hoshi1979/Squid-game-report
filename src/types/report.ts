@@ -40,6 +40,13 @@ export interface ReportData {
     amountTaxEx: number;  // 税抜 = 税込 ÷ 1.1（端数切り捨て）
   };
 
+  /** 施策対応（チケット売上とリテール売上の間） */
+  policyMeasures: {
+    game500CouponCollected: number;  // ①イカゲーム500円引き券回収
+    serialCardDistributed: number;     // ②シリアルカード配布
+    mealDiscountDistributed: number;   // ③お食事割引券配布
+  };
+
   /** リテール販売 */
   retail: {
     salesTaxEx: number; // 物販売り上げ（税抜・手入力）
@@ -71,6 +78,14 @@ export interface ReportData {
     genVipHoliday:   IbTicketRow; // 一般VIP（休日）  ¥6,430
     childVipWeekday: IbTicketRow; // こどもVIP（平日）¥5,630
     childVipHoliday: IbTicketRow; // こどもVIP（休日）¥5,830
+    genWeekdayDiscount500: IbTicketRow; // 【500円引き】一般（平日）  ¥3,730
+    genHolidayDiscount500: IbTicketRow;
+    childWeekdayDiscount500: IbTicketRow;
+    childHolidayDiscount500: IbTicketRow;
+    genVipWeekdayDiscount500: IbTicketRow;
+    genVipHolidayDiscount500: IbTicketRow;
+    childVipWeekdayDiscount500: IbTicketRow;
+    childVipHolidayDiscount500: IbTicketRow;
     vip:          IbTicketRow; // 貸切VIP       ¥2,330
     totalCount: number;
     totalAmount: number;
@@ -125,6 +140,88 @@ export const IB_UNIT_PRICE_BY_KEY = {
 
 export type IbTicketPriceKey = keyof typeof IB_UNIT_PRICE_BY_KEY;
 
+/** IB【500円引き】は通常単価からこの金額を引く */
+export const IB_DISCOUNT_YEN = 500;
+
+/** 貸切VIPを除く8券種の【500円引き】単価（通常単価 − 500円） */
+export const IB_UNIT_PRICE_DISCOUNT500_BY_KEY = {
+  genWeekdayDiscount500: IB_UNIT_PRICE_BY_KEY.genWeekday - IB_DISCOUNT_YEN,
+  genHolidayDiscount500: IB_UNIT_PRICE_BY_KEY.genHoliday - IB_DISCOUNT_YEN,
+  childWeekdayDiscount500: IB_UNIT_PRICE_BY_KEY.childWeekday - IB_DISCOUNT_YEN,
+  childHolidayDiscount500: IB_UNIT_PRICE_BY_KEY.childHoliday - IB_DISCOUNT_YEN,
+  genVipWeekdayDiscount500: IB_UNIT_PRICE_BY_KEY.genVipWeekday - IB_DISCOUNT_YEN,
+  genVipHolidayDiscount500: IB_UNIT_PRICE_BY_KEY.genVipHoliday - IB_DISCOUNT_YEN,
+  childVipWeekdayDiscount500: IB_UNIT_PRICE_BY_KEY.childVipWeekday - IB_DISCOUNT_YEN,
+  childVipHolidayDiscount500: IB_UNIT_PRICE_BY_KEY.childVipHoliday - IB_DISCOUNT_YEN,
+} as const;
+
+export type IbDiscount500TicketKey = keyof typeof IB_UNIT_PRICE_DISCOUNT500_BY_KEY;
+
+export type IbTicketRowKey = Exclude<
+  keyof ReportData["ibTickets"],
+  "totalCount" | "totalAmount"
+>;
+
+/** 日報フォーム・詳細の表示順（通常8 → 【500円引き】8 → 貸切VIP） */
+export const IB_TICKET_FORM_SPECS: readonly {
+  key: IbTicketRowKey;
+  label: string;
+  unitPrice: number;
+}[] = [
+  { key: "genWeekday", label: "一般（平日）", unitPrice: IB_UNIT_PRICE_BY_KEY.genWeekday },
+  { key: "genHoliday", label: "一般（休日）", unitPrice: IB_UNIT_PRICE_BY_KEY.genHoliday },
+  { key: "childWeekday", label: "こども（平日）", unitPrice: IB_UNIT_PRICE_BY_KEY.childWeekday },
+  { key: "childHoliday", label: "こども（休日）", unitPrice: IB_UNIT_PRICE_BY_KEY.childHoliday },
+  { key: "genVipWeekday", label: "一般VIP（平日）", unitPrice: IB_UNIT_PRICE_BY_KEY.genVipWeekday },
+  { key: "genVipHoliday", label: "一般VIP（休日）", unitPrice: IB_UNIT_PRICE_BY_KEY.genVipHoliday },
+  { key: "childVipWeekday", label: "こどもVIP（平日）", unitPrice: IB_UNIT_PRICE_BY_KEY.childVipWeekday },
+  { key: "childVipHoliday", label: "こどもVIP（休日）", unitPrice: IB_UNIT_PRICE_BY_KEY.childVipHoliday },
+  {
+    key: "genWeekdayDiscount500",
+    label: "【500円引き】一般（平日）",
+    unitPrice: IB_UNIT_PRICE_DISCOUNT500_BY_KEY.genWeekdayDiscount500,
+  },
+  {
+    key: "genHolidayDiscount500",
+    label: "【500円引き】一般（休日）",
+    unitPrice: IB_UNIT_PRICE_DISCOUNT500_BY_KEY.genHolidayDiscount500,
+  },
+  {
+    key: "childWeekdayDiscount500",
+    label: "【500円引き】こども（平日）",
+    unitPrice: IB_UNIT_PRICE_DISCOUNT500_BY_KEY.childWeekdayDiscount500,
+  },
+  {
+    key: "childHolidayDiscount500",
+    label: "【500円引き】こども（休日）",
+    unitPrice: IB_UNIT_PRICE_DISCOUNT500_BY_KEY.childHolidayDiscount500,
+  },
+  {
+    key: "genVipWeekdayDiscount500",
+    label: "【500円引き】一般VIP（平日）",
+    unitPrice: IB_UNIT_PRICE_DISCOUNT500_BY_KEY.genVipWeekdayDiscount500,
+  },
+  {
+    key: "genVipHolidayDiscount500",
+    label: "【500円引き】一般VIP（休日）",
+    unitPrice: IB_UNIT_PRICE_DISCOUNT500_BY_KEY.genVipHolidayDiscount500,
+  },
+  {
+    key: "childVipWeekdayDiscount500",
+    label: "【500円引き】こどもVIP（平日）",
+    unitPrice: IB_UNIT_PRICE_DISCOUNT500_BY_KEY.childVipWeekdayDiscount500,
+  },
+  {
+    key: "childVipHolidayDiscount500",
+    label: "【500円引き】こどもVIP（休日）",
+    unitPrice: IB_UNIT_PRICE_DISCOUNT500_BY_KEY.childVipHolidayDiscount500,
+  },
+  { key: "vip", label: "貸切VIP", unitPrice: IB_UNIT_PRICE_BY_KEY.vip },
+];
+
+export const IB_TICKET_ROW_KEYS: readonly IbTicketRowKey[] =
+  IB_TICKET_FORM_SPECS.map((s) => s.key);
+
 export const JERSEY_RENTAL_UNIT_NORMAL = 1500;
 export const JERSEY_RENTAL_UNIT_SNS = 1000;
 
@@ -137,6 +234,16 @@ export function snsPostWithDefaults(
     circleCount,
     squareCount,
     totalCount: circleCount + squareCount,
+  };
+}
+
+export function policyMeasuresWithDefaults(
+  p: Partial<ReportData["policyMeasures"]> | undefined | null,
+): ReportData["policyMeasures"] {
+  return {
+    game500CouponCollected: coerceNum(p?.game500CouponCollected),
+    serialCardDistributed: coerceNum(p?.serialCardDistributed),
+    mealDiscountDistributed: coerceNum(p?.mealDiscountDistributed),
   };
 }
 
@@ -158,40 +265,50 @@ export function jerseyRentalWithDefaults(
   };
 }
 
+function mergeIbTicketRow(
+  partial: Partial<IbTicketRow> | undefined,
+  unitPrice: number,
+): IbTicketRow {
+  const count = coerceNum(partial?.count);
+  return { count, unitPrice, amount: count * unitPrice };
+}
+
+/** 各券種から IB 合計枚数・金額を再計算 */
+export function computeIbTicketTotals(
+  rows: Pick<ReportData["ibTickets"], IbTicketRowKey>,
+): Pick<ReportData["ibTickets"], "totalCount" | "totalAmount"> {
+  let totalCount = 0;
+  let totalAmount = 0;
+  for (const spec of IB_TICKET_FORM_SPECS) {
+    const row = rows[spec.key];
+    totalCount += row.count;
+    totalAmount += row.amount;
+  }
+  return { totalCount, totalAmount };
+}
+
 /** 旧日報JSON（IB券種不足時）にも対応して ibTickets を埋める */
 export function ibTicketsWithDefaults(
   ib: Partial<ReportData["ibTickets"]> | undefined | null,
 ): ReportData["ibTickets"] {
-  const z = (price: number): IbTicketRow => ({ count: 0, unitPrice: price, amount: 0 });
-  const P = IB_UNIT_PRICE_BY_KEY;
-  if (!ib) {
-    return {
-      genWeekday:      z(P.genWeekday),
-      genHoliday:      z(P.genHoliday),
-      childWeekday:    z(P.childWeekday),
-      childHoliday:    z(P.childHoliday),
-      genVipWeekday:   z(P.genVipWeekday),
-      genVipHoliday:   z(P.genVipHoliday),
-      childVipWeekday: z(P.childVipWeekday),
-      childVipHoliday: z(P.childVipHoliday),
-      vip:             z(P.vip),
-      totalCount:      0,
-      totalAmount:     0,
-    };
-  }
-  return {
-    genWeekday:      ib.genWeekday      ?? z(P.genWeekday),
-    genHoliday:      ib.genHoliday      ?? z(P.genHoliday),
-    childWeekday:    ib.childWeekday    ?? z(P.childWeekday),
-    childHoliday:    ib.childHoliday    ?? z(P.childHoliday),
-    genVipWeekday:   ib.genVipWeekday   ?? z(P.genVipWeekday),
-    genVipHoliday:   ib.genVipHoliday   ?? z(P.genVipHoliday),
-    childVipWeekday: ib.childVipWeekday ?? z(P.childVipWeekday),
-    childVipHoliday: ib.childVipHoliday ?? z(P.childVipHoliday),
-    vip:             ib.vip             ?? z(P.vip),
-    totalCount:      ib.totalCount      ?? 0,
-    totalAmount:     ib.totalAmount     ?? 0,
-  };
+  const rows = Object.fromEntries(
+    IB_TICKET_FORM_SPECS.map((spec) => [
+      spec.key,
+      mergeIbTicketRow(
+        ib?.[spec.key] as Partial<IbTicketRow> | undefined,
+        spec.unitPrice,
+      ),
+    ]),
+  ) as Pick<ReportData["ibTickets"], IbTicketRowKey>;
+
+  const totals = ib
+    ? {
+        totalCount: coerceNum(ib.totalCount),
+        totalAmount: coerceNum(ib.totalAmount),
+      }
+    : computeIbTicketTotals(rows);
+
+  return { ...rows, ...totals };
 }
 
 /** content フィールドから ReportData を安全にパースする */
@@ -244,6 +361,7 @@ export function sanitizeReportForForm(raw: ReportData): ReportData {
       amountTaxIn: coerceNum(tt?.amountTaxIn),
       amountTaxEx: coerceNum(tt?.amountTaxEx),
     },
+    policyMeasures: policyMeasuresWithDefaults(raw.policyMeasures),
     retail: {
       salesTaxEx: coerceNum(r?.salesTaxEx),
       salesTaxIn: coerceNum(r?.salesTaxIn),

@@ -1,6 +1,11 @@
-import { parseReportContent, snsPostWithDefaults } from "@/types/report";
+import {
+  parseReportContent,
+  jerseyRentalWithDefaults,
+  policyMeasuresWithDefaults,
+  snsPostWithDefaults,
+} from "@/types/report";
 import { buildTicketExportRow } from "@/lib/csv/buildTicketExportCsv";
-import { NUMERIC_ROW_COUNT } from "@/lib/report/itemListSpec";
+import { NUMERIC_ROW_COUNT, RETAIL_LABEL_COUNT } from "@/lib/report/itemListSpec";
 import type { DailyReport } from "@/types/database";
 
 export interface ItemListTextFields {
@@ -19,7 +24,28 @@ export function extractNumericValuesFromContent(content: string): number[] {
     report_date: data.date,
   } as DailyReport);
 
-  return [...row.ticketCounts, ...row.appendValues];
+  const tokuten = data.tokuten;
+  const vip = data.kashikiriVip;
+  const jersey = jerseyRentalWithDefaults(data?.jerseyRental);
+  const pm = policyMeasuresWithDefaults(data?.policyMeasures);
+
+  const retail = row.appendValues.slice(0, RETAIL_LABEL_COUNT);
+  const ib = row.appendValues.slice(RETAIL_LABEL_COUNT + 3);
+
+  return [
+    ...row.ticketCounts,
+    tokuten?.todayRemaining ?? 0,
+    vip?.todayTotal ?? 0,
+    ...retail,
+    jersey.normalCount,
+    jersey.snsCount,
+    jersey.normalCount + jersey.snsCount,
+    jersey.totalAmount,
+    ...ib,
+    pm.game500CouponCollected,
+    pm.serialCardDistributed,
+    pm.mealDiscountDistributed,
+  ];
 }
 
 /** 日報 content から SNS 投稿枚数を抽出（〇・▢・合計） */

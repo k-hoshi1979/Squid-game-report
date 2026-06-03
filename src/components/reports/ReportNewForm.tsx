@@ -5,9 +5,13 @@ import { CsvTicketImporter } from "./CsvTicketImporter";
 import type { CsvParseResult } from "@/lib/csv/parseTicketCsv";
 import {
   type ReportData,
-  IB_UNIT_PRICE_BY_KEY,
+  type IbTicketRowKey,
+  IB_TICKET_FORM_SPECS,
+  IB_TICKET_ROW_KEYS,
+  computeIbTicketTotals,
   ibTicketsWithDefaults,
   jerseyRentalWithDefaults,
+  policyMeasuresWithDefaults,
   snsPostWithDefaults,
   JERSEY_RENTAL_UNIT_NORMAL,
   JERSEY_RENTAL_UNIT_SNS,
@@ -52,6 +56,12 @@ const fmtDateJa = (d: string) => {
 interface TokutenState  { prev: number; today: number; sales: number; amount: number; done: boolean }
 interface VipState      { prev: number; today: number; sales: number; amount: number; done: boolean }
 interface RetailState   { taxEx: number; taxIn: number; payCount: number; done: boolean }
+interface PolicyMeasuresState {
+  game500CouponCollected: number;
+  serialCardDistributed: number;
+  mealDiscountDistributed: number;
+  done: boolean;
+}
 /** ジャージレンタル（リテール合計とは別計上） */
 interface JerseyState {
   normalCount: number;
@@ -61,19 +71,32 @@ interface JerseyState {
   totalAmount: number;
   done: boolean;
 }
-interface IbState {
-  genWeekday: number;
-  genHoliday: number;
-  childWeekday: number;
-  childHoliday: number;
-  genVipWeekday: number;
-  genVipHoliday: number;
-  childVipWeekday: number;
-  childVipHoliday: number;
-  vip: number;
+type IbState = Record<IbTicketRowKey, number> & {
   totalCount: number;
   totalAmount: number;
   done: boolean;
+};
+
+function ibCountsFromRows(ib: ReportData["ibTickets"]): Record<IbTicketRowKey, number> {
+  return Object.fromEntries(
+    IB_TICKET_ROW_KEYS.map((key) => [key, ib[key].count]),
+  ) as Record<IbTicketRowKey, number>;
+}
+
+function ibTicketsPayloadFromCounts(
+  counts: Record<IbTicketRowKey, number>,
+): ReportData["ibTickets"] {
+  const rows = Object.fromEntries(
+    IB_TICKET_FORM_SPECS.map((spec) => [
+      spec.key,
+      {
+        count: counts[spec.key],
+        unitPrice: spec.unitPrice,
+        amount: counts[spec.key] * spec.unitPrice,
+      },
+    ]),
+  ) as Pick<ReportData["ibTickets"], IbTicketRowKey>;
+  return { ...rows, ...computeIbTicketTotals(rows) };
 }
 
 // ─── 小部品 ──────────────────────────────────────────────
@@ -208,6 +231,17 @@ export function ReportNewForm({
         }
       : { prev: 0, today: 0, sales: 0, amount: 0, done: false }
   );
+  const [policyMeasures, setPolicyMeasures] = useState<PolicyMeasuresState>(
+    initialData
+      ? {
+          game500CouponCollected: initialData.policyMeasures?.game500CouponCollected ?? 0,
+          serialCardDistributed: initialData.policyMeasures?.serialCardDistributed ?? 0,
+          mealDiscountDistributed: initialData.policyMeasures?.mealDiscountDistributed ?? 0,
+          done: true,
+        }
+      : { game500CouponCollected: 0, serialCardDistributed: 0, mealDiscountDistributed: 0, done: false },
+  );
+
   const [retail, setRetail] = useState<RetailState>(
     initialData
       ? {
@@ -246,43 +280,14 @@ export function ReportNewForm({
   const [ibTickets, setIbTickets] = useState<IbState>(() => {
     if (initialData) {
       const ib = ibTicketsWithDefaults(initialData.ibTickets);
-      return {
-        genWeekday:      ib.genWeekday.count,
-        genHoliday:      ib.genHoliday.count,
-        childWeekday:    ib.childWeekday.count,
-        childHoliday:    ib.childHoliday.count,
-        genVipWeekday:   ib.genVipWeekday.count,
-        genVipHoliday:   ib.genVipHoliday.count,
-        childVipWeekday: ib.childVipWeekday.count,
-        childVipHoliday: ib.childVipHoliday.count,
-        vip:             ib.vip.count,
-        totalCount:      ib.totalCount,
-        totalAmount:     ib.totalAmount,
-        done:            true,
-      };
+      return { ...ibCountsFromRows(ib), totalCount: ib.totalCount, totalAmount: ib.totalAmount, done: true };
     }
     if (retailPrefill) {
       const ib = ibTicketsWithDefaults(retailPrefill.ibTickets);
-      return {
-        genWeekday:      ib.genWeekday.count,
-        genHoliday:      ib.genHoliday.count,
-        childWeekday:    ib.childWeekday.count,
-        childHoliday:    ib.childHoliday.count,
-        genVipWeekday:   ib.genVipWeekday.count,
-        genVipHoliday:   ib.genVipHoliday.count,
-        childVipWeekday: ib.childVipWeekday.count,
-        childVipHoliday: ib.childVipHoliday.count,
-        vip:             ib.vip.count,
-        totalCount:      ib.totalCount,
-        totalAmount:     ib.totalAmount,
-        done:            false,
-      };
+      return { ...ibCountsFromRows(ib), totalCount: ib.totalCount, totalAmount: ib.totalAmount, done: false };
     }
-    return {
-      genWeekday: 0, genHoliday: 0, childWeekday: 0, childHoliday: 0,
-      genVipWeekday: 0, genVipHoliday: 0, childVipWeekday: 0, childVipHoliday: 0,
-      vip: 0, totalCount: 0, totalAmount: 0, done: false,
-    };
+    const zero = Object.fromEntries(IB_TICKET_ROW_KEYS.map((k) => [k, 0])) as Record<IbTicketRowKey, number>;
+    return { ...zero, totalCount: 0, totalAmount: 0, done: false };
   });
 
   // テキスト
@@ -307,20 +312,15 @@ export function ReportNewForm({
   const tokutenTodayRef   = useRef<HTMLInputElement>(null);
   const vipPrevRef        = useRef<HTMLInputElement>(null);
   const vipTodayRef       = useRef<HTMLInputElement>(null);
+  const policyGame500Ref  = useRef<HTMLInputElement>(null);
+  const policySerialRef   = useRef<HTMLInputElement>(null);
+  const policyMealRef     = useRef<HTMLInputElement>(null);
   const retailSalesRef    = useRef<HTMLInputElement>(null);
   const retailSalesTaxInRef = useRef<HTMLInputElement>(null);
   const payCountRef       = useRef<HTMLInputElement>(null);
   const jerseyNormalRef   = useRef<HTMLInputElement>(null);
   const jerseySnsRef      = useRef<HTMLInputElement>(null);
-  const ibGenWeekdayRef      = useRef<HTMLInputElement>(null);
-  const ibGenHolidayRef      = useRef<HTMLInputElement>(null);
-  const ibChildWeekdayRef    = useRef<HTMLInputElement>(null);
-  const ibChildHolidayRef    = useRef<HTMLInputElement>(null);
-  const ibGenVipWeekdayRef   = useRef<HTMLInputElement>(null);
-  const ibGenVipHolidayRef   = useRef<HTMLInputElement>(null);
-  const ibChildVipWeekdayRef = useRef<HTMLInputElement>(null);
-  const ibChildVipHolidayRef = useRef<HTMLInputElement>(null);
-  const ibVipRef             = useRef<HTMLInputElement>(null);
+  const ibInputRefs = useRef<Partial<Record<IbTicketRowKey, HTMLInputElement | null>>>({});
 
   // ─── 確定ハンドラ ────────────────────────────────────
   const confirmTokuten = () => {
@@ -335,6 +335,15 @@ export function ReportNewForm({
     const today = toNum(vipTodayRef.current?.value);
     const sales = Math.max(0, today - prev);
     setVip({ prev, today, sales, amount: sales * VIP_PRICE, done: true });
+  };
+
+  const confirmPolicyMeasures = () => {
+    setPolicyMeasures({
+      game500CouponCollected: toNum(policyGame500Ref.current?.value),
+      serialCardDistributed: toNum(policySerialRef.current?.value),
+      mealDiscountDistributed: toNum(policyMealRef.current?.value),
+      done: true,
+    });
   };
 
   const confirmRetail = () => {
@@ -360,32 +369,19 @@ export function ReportNewForm({
   };
 
   const confirmIb = () => {
-    const c = {
-      genWeekday:      toNum(ibGenWeekdayRef.current?.value),
-      genHoliday:      toNum(ibGenHolidayRef.current?.value),
-      childWeekday:    toNum(ibChildWeekdayRef.current?.value),
-      childHoliday:    toNum(ibChildHolidayRef.current?.value),
-      genVipWeekday:   toNum(ibGenVipWeekdayRef.current?.value),
-      genVipHoliday:   toNum(ibGenVipHolidayRef.current?.value),
-      childVipWeekday: toNum(ibChildVipWeekdayRef.current?.value),
-      childVipHoliday: toNum(ibChildVipHolidayRef.current?.value),
-      vip:             toNum(ibVipRef.current?.value),
-    };
-    const P = IB_UNIT_PRICE_BY_KEY;
-    const totalCount =
-      c.genWeekday + c.genHoliday + c.childWeekday + c.childHoliday +
-      c.genVipWeekday + c.genVipHoliday + c.childVipWeekday + c.childVipHoliday + c.vip;
-    const totalAmount =
-      c.genWeekday      * P.genWeekday      +
-      c.genHoliday      * P.genHoliday      +
-      c.childWeekday    * P.childWeekday    +
-      c.childHoliday    * P.childHoliday    +
-      c.genVipWeekday   * P.genVipWeekday   +
-      c.genVipHoliday   * P.genVipHoliday   +
-      c.childVipWeekday * P.childVipWeekday +
-      c.childVipHoliday * P.childVipHoliday +
-      c.vip             * P.vip;
-    setIbTickets({ ...c, totalCount, totalAmount, done: true });
+    const counts = Object.fromEntries(
+      IB_TICKET_ROW_KEYS.map((key) => [
+        key,
+        toNum(ibInputRefs.current[key]?.value),
+      ]),
+    ) as Record<IbTicketRowKey, number>;
+    const payload = ibTicketsPayloadFromCounts(counts);
+    setIbTickets({
+      ...counts,
+      totalCount: payload.totalCount,
+      totalAmount: payload.totalAmount,
+      done: true,
+    });
   };
 
   // チケット合計
@@ -410,28 +406,32 @@ export function ReportNewForm({
     tokuten: { prevRemaining: tokuten.prev, todayRemaining: tokuten.today, salesCount: tokuten.sales, unitPrice: TOKUTEN_PRICE, amount: tokuten.amount },
     kashikiriVip: { prevTotal: vip.prev, todayTotal: vip.today, salesCount: vip.sales, unitPrice: VIP_PRICE, amount: vip.amount },
     ticketTotal,
+    policyMeasures: policyMeasuresWithDefaults({
+      game500CouponCollected: policyMeasures.game500CouponCollected,
+      serialCardDistributed: policyMeasures.serialCardDistributed,
+      mealDiscountDistributed: policyMeasures.mealDiscountDistributed,
+    }),
     retail: { salesTaxEx: retail.taxEx, salesTaxIn: retail.taxIn, paymentCount: retail.payCount },
     jerseyRental: jerseyRentalWithDefaults({ normalCount: jersey.normalCount, snsCount: jersey.snsCount }),
-    ibTickets: {
-      genWeekday:   { count: ibTickets.genWeekday,      unitPrice: IB_UNIT_PRICE_BY_KEY.genWeekday,      amount: ibTickets.genWeekday      * IB_UNIT_PRICE_BY_KEY.genWeekday },
-      genHoliday:   { count: ibTickets.genHoliday,      unitPrice: IB_UNIT_PRICE_BY_KEY.genHoliday,      amount: ibTickets.genHoliday      * IB_UNIT_PRICE_BY_KEY.genHoliday },
-      childWeekday: { count: ibTickets.childWeekday,    unitPrice: IB_UNIT_PRICE_BY_KEY.childWeekday,    amount: ibTickets.childWeekday    * IB_UNIT_PRICE_BY_KEY.childWeekday },
-      childHoliday: { count: ibTickets.childHoliday,    unitPrice: IB_UNIT_PRICE_BY_KEY.childHoliday,    amount: ibTickets.childHoliday    * IB_UNIT_PRICE_BY_KEY.childHoliday },
-      genVipWeekday:   { count: ibTickets.genVipWeekday,   unitPrice: IB_UNIT_PRICE_BY_KEY.genVipWeekday,   amount: ibTickets.genVipWeekday   * IB_UNIT_PRICE_BY_KEY.genVipWeekday },
-      genVipHoliday:   { count: ibTickets.genVipHoliday,   unitPrice: IB_UNIT_PRICE_BY_KEY.genVipHoliday,   amount: ibTickets.genVipHoliday   * IB_UNIT_PRICE_BY_KEY.genVipHoliday },
-      childVipWeekday: { count: ibTickets.childVipWeekday, unitPrice: IB_UNIT_PRICE_BY_KEY.childVipWeekday, amount: ibTickets.childVipWeekday * IB_UNIT_PRICE_BY_KEY.childVipWeekday },
-      childVipHoliday: { count: ibTickets.childVipHoliday, unitPrice: IB_UNIT_PRICE_BY_KEY.childVipHoliday, amount: ibTickets.childVipHoliday * IB_UNIT_PRICE_BY_KEY.childVipHoliday },
-      vip:          { count: ibTickets.vip,             unitPrice: IB_UNIT_PRICE_BY_KEY.vip,             amount: ibTickets.vip             * IB_UNIT_PRICE_BY_KEY.vip },
-      totalCount: ibTickets.totalCount, totalAmount: ibTickets.totalAmount,
-    },
+    ibTickets: ibTicketsPayloadFromCounts(
+      Object.fromEntries(IB_TICKET_ROW_KEYS.map((k) => [k, ibTickets[k]])) as Record<
+        IbTicketRowKey,
+        number
+      >,
+    ),
     operationNotes, irregularReport,
     snsPost,
     lostAndFound,
-  }), [date, reporter, csvData, tokuten, vip, ticketTotal, retail, jersey, ibTickets, snsPost, operationNotes, irregularReport, lostAndFound]);
+  }), [date, reporter, csvData, tokuten, vip, ticketTotal, policyMeasures, retail, jersey, ibTickets, snsPost, operationNotes, irregularReport, lostAndFound]);
 
   // ─── 送信ハンドラ（formなし・useTransition） ──────────
   /** 入力欄が uncontrolled のため、保存直前は ref の現値で上書き（確定ボタンを押し忘れても反映される） */
   const handleSubmit = (submitAction: "draft" | "submit") => {
+    const policyMeasuresPayload = policyMeasuresWithDefaults({
+      game500CouponCollected: toNum(policyGame500Ref.current?.value),
+      serialCardDistributed: toNum(policySerialRef.current?.value),
+      mealDiscountDistributed: toNum(policyMealRef.current?.value),
+    });
     const retailPayload: ReportData["retail"] = {
       salesTaxEx: toNum(retailSalesRef.current?.value),
       salesTaxIn: toNum(retailSalesTaxInRef.current?.value),
@@ -441,13 +441,23 @@ export function ReportNewForm({
       normalCount: toNum(jerseyNormalRef.current?.value),
       snsCount: toNum(jerseySnsRef.current?.value),
     });
+    const ibCounts = Object.fromEntries(
+      IB_TICKET_ROW_KEYS.map((key) => [key, toNum(ibInputRefs.current[key]?.value)]),
+    ) as Record<IbTicketRowKey, number>;
+    const ibTicketsPayload = ibTicketsPayloadFromCounts(ibCounts);
 
     const fd = new FormData();
     fd.set("report_date", date);
     fd.set("title", `${date} 日報${reporter ? ` (${reporter})` : ""}`);
     fd.set(
       "content",
-      JSON.stringify({ ...reportData, retail: retailPayload, jerseyRental: jerseyPayload }),
+      JSON.stringify({
+        ...reportData,
+        policyMeasures: policyMeasuresPayload,
+        retail: retailPayload,
+        jerseyRental: jerseyPayload,
+        ibTickets: ibTicketsPayload,
+      }),
     );
     fd.set("action", submitAction);
     startTransition(async () => { await action(fd); });
@@ -633,6 +643,52 @@ export function ReportNewForm({
         )}
       </Card>
 
+      {/* ── ■施策対応 ── */}
+      <Card title="■ 施策対応">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <p className="text-xs text-[var(--muted-foreground)]">各項目の数量を入力してください。</p>
+          <OkButton onClick={confirmPolicyMeasures} done={policyMeasures.done} />
+        </div>
+        <div className="space-y-2 pl-1">
+          <NumInput
+            label="①イカゲーム500円引き券回収"
+            inputRef={policyGame500Ref}
+            unit="枚"
+            defaultValue={initialData?.policyMeasures?.game500CouponCollected ?? ""}
+          />
+          <NumInput
+            label="②シリアルカード配布"
+            inputRef={policySerialRef}
+            unit="枚"
+            defaultValue={initialData?.policyMeasures?.serialCardDistributed ?? ""}
+          />
+          <NumInput
+            label="③お食事割引券配布"
+            inputRef={policyMealRef}
+            unit="枚"
+            defaultValue={initialData?.policyMeasures?.mealDiscountDistributed ?? ""}
+          />
+        </div>
+        {policyMeasures.done && (
+          <ResultBox
+            rows={[
+              {
+                label: "①イカゲーム500円引き券回収",
+                value: `${fmt(policyMeasures.game500CouponCollected)} 枚`,
+              },
+              {
+                label: "②シリアルカード配布",
+                value: `${fmt(policyMeasures.serialCardDistributed)} 枚`,
+              },
+              {
+                label: "③お食事割引券配布",
+                value: `${fmt(policyMeasures.mealDiscountDistributed)} 枚`,
+              },
+            ]}
+          />
+        )}
+      </Card>
+
       {/* ── ■リテール販売 ── */}
       <Card title="■ リテール販売">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -744,46 +800,41 @@ export function ReportNewForm({
           <OkButton onClick={confirmIb} done={ibTickets.done} />
         </div>
         <div className="space-y-2 pl-1">
-          {([
-            ["一般（平日）",     ibGenWeekdayRef,      IB_UNIT_PRICE_BY_KEY.genWeekday,      initialIbRows?.genWeekday.count],
-            ["一般（休日）",     ibGenHolidayRef,      IB_UNIT_PRICE_BY_KEY.genHoliday,      initialIbRows?.genHoliday.count],
-            ["こども（平日）",   ibChildWeekdayRef,    IB_UNIT_PRICE_BY_KEY.childWeekday,    initialIbRows?.childWeekday.count],
-            ["こども（休日）",   ibChildHolidayRef,    IB_UNIT_PRICE_BY_KEY.childHoliday,    initialIbRows?.childHoliday.count],
-            ["一般VIP（平日）",  ibGenVipWeekdayRef,   IB_UNIT_PRICE_BY_KEY.genVipWeekday,   initialIbRows?.genVipWeekday.count],
-            ["一般VIP（休日）",  ibGenVipHolidayRef,   IB_UNIT_PRICE_BY_KEY.genVipHoliday,   initialIbRows?.genVipHoliday.count],
-            ["こどもVIP（平日）", ibChildVipWeekdayRef, IB_UNIT_PRICE_BY_KEY.childVipWeekday, initialIbRows?.childVipWeekday.count],
-            ["こどもVIP（休日）", ibChildVipHolidayRef, IB_UNIT_PRICE_BY_KEY.childVipHoliday, initialIbRows?.childVipHoliday.count],
-            ["貸切VIP",          ibVipRef,             IB_UNIT_PRICE_BY_KEY.vip,             initialIbRows?.vip.count],
-          ] as [string, React.RefObject<HTMLInputElement | null>, number, number | undefined][]).map(([label, ref, price, defVal]) => (
-            <div key={label} className="flex items-center gap-3">
-              <span className="text-sm text-[var(--foreground)] w-36 shrink-0">{label}</span>
+          {IB_TICKET_FORM_SPECS.map((spec) => (
+            <div key={spec.key} className="flex items-center gap-3">
+              <span className={`text-sm text-[var(--foreground)] shrink-0 ${spec.label.startsWith("【500円引き】") ? "w-44" : "w-36"}`}>
+                {spec.label}
+              </span>
               <div className="flex items-center gap-1.5">
                 <input
-                  ref={ref}
+                  ref={(el) => {
+                    ibInputRefs.current[spec.key] = el;
+                  }}
                   type="number"
                   min="0"
-                  defaultValue={defVal ?? ""}
+                  defaultValue={initialIbRows?.[spec.key].count ?? ""}
                   placeholder="0"
                   className="w-20 px-3 py-1.5 border border-[var(--border)] rounded-lg text-sm bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] text-right tabular-nums"
                 />
-                <span className="text-xs text-[var(--muted-foreground)]">枚 × ¥{fmt(price)}</span>
+                <span className="text-xs text-[var(--muted-foreground)]">枚 × ¥{fmt(spec.unitPrice)}</span>
               </div>
             </div>
           ))}
         </div>
         {ibTickets.done && (
-          <ResultBox rows={[
-            { label: "一般（平日）",       value: `${fmt(ibTickets.genWeekday)}枚  ¥${fmt(ibTickets.genWeekday      * IB_UNIT_PRICE_BY_KEY.genWeekday)}` },
-            { label: "一般（休日）",       value: `${fmt(ibTickets.genHoliday)}枚  ¥${fmt(ibTickets.genHoliday      * IB_UNIT_PRICE_BY_KEY.genHoliday)}` },
-            { label: "こども（平日）",     value: `${fmt(ibTickets.childWeekday)}枚  ¥${fmt(ibTickets.childWeekday    * IB_UNIT_PRICE_BY_KEY.childWeekday)}` },
-            { label: "こども（休日）",     value: `${fmt(ibTickets.childHoliday)}枚  ¥${fmt(ibTickets.childHoliday    * IB_UNIT_PRICE_BY_KEY.childHoliday)}` },
-            { label: "一般VIP（平日）",    value: `${fmt(ibTickets.genVipWeekday)}枚  ¥${fmt(ibTickets.genVipWeekday   * IB_UNIT_PRICE_BY_KEY.genVipWeekday)}` },
-            { label: "一般VIP（休日）",    value: `${fmt(ibTickets.genVipHoliday)}枚  ¥${fmt(ibTickets.genVipHoliday   * IB_UNIT_PRICE_BY_KEY.genVipHoliday)}` },
-            { label: "こどもVIP（平日）",  value: `${fmt(ibTickets.childVipWeekday)}枚  ¥${fmt(ibTickets.childVipWeekday * IB_UNIT_PRICE_BY_KEY.childVipWeekday)}` },
-            { label: "こどもVIP（休日）",  value: `${fmt(ibTickets.childVipHoliday)}枚  ¥${fmt(ibTickets.childVipHoliday * IB_UNIT_PRICE_BY_KEY.childVipHoliday)}` },
-            { label: "貸切VIP",            value: `${fmt(ibTickets.vip)}枚  ¥${fmt(ibTickets.vip             * IB_UNIT_PRICE_BY_KEY.vip)}` },
-            { label: "IB合計", value: `${fmt(ibTickets.totalCount)}枚 / ¥${fmt(ibTickets.totalAmount)}`, highlight: true },
-          ]} />
+          <ResultBox
+            rows={[
+              ...IB_TICKET_FORM_SPECS.map((spec) => ({
+                label: spec.label,
+                value: `${fmt(ibTickets[spec.key])}枚  ¥${fmt(ibTickets[spec.key] * spec.unitPrice)}`,
+              })),
+              {
+                label: "IB合計",
+                value: `${fmt(ibTickets.totalCount)}枚 / ¥${fmt(ibTickets.totalAmount)}`,
+                highlight: true,
+              },
+            ]}
+          />
         )}
       </Card>
 
@@ -959,6 +1010,19 @@ function ReportPreview({ data }: { data: ReportData }) {
         <PRow label="売上合計（税抜）" value={`¥${fmt(ticketTotalTaxEx(data.ticketTotal))}`} />
       </PBlock>
 
+      <PBlock title="■ 施策対応">
+        {(() => {
+          const pm = policyMeasuresWithDefaults(data.policyMeasures);
+          return (
+            <>
+              <PRow label="①イカゲーム500円引き券回収" value={`${fmt(pm.game500CouponCollected)}枚`} />
+              <PRow label="②シリアルカード配布" value={`${fmt(pm.serialCardDistributed)}枚`} />
+              <PRow label="③お食事割引券配布" value={`${fmt(pm.mealDiscountDistributed)}枚`} />
+            </>
+          );
+        })()}
+      </PBlock>
+
       <PBlock title="■ リテール売上">
         <PRow label="物販（税抜）"  value={`¥${fmt(data.retail.salesTaxEx)}`} />
         <PRow label="物販（税込）"  value={`¥${fmt(Math.round(data.retail.salesTaxIn))}`} bold />
@@ -981,20 +1045,17 @@ function ReportPreview({ data }: { data: ReportData }) {
       <PBlock title="■ IB対応チケット">
         {(() => {
           const ib = ibTicketsWithDefaults(data.ibTickets);
-          return ([
-            ["一般（平日）",       ib.genWeekday],
-            ["一般（休日）",       ib.genHoliday],
-            ["こども（平日）",     ib.childWeekday],
-            ["こども（休日）",     ib.childHoliday],
-            ["一般VIP（平日）",    ib.genVipWeekday],
-            ["一般VIP（休日）",    ib.genVipHoliday],
-            ["こどもVIP（平日）",  ib.childVipWeekday],
-            ["こどもVIP（休日）",  ib.childVipHoliday],
-            ["貸切VIP",            ib.vip],
-          ] as [string, { count: number; unitPrice: number; amount: number }][])
-            .map(([label, r]) => (
-              <PRow key={label} label={`${label}（×¥${fmt(r.unitPrice)}）`} value={`${fmt(r.count)}枚`} sub={`¥${fmt(r.amount)}`} />
-            ));
+          return IB_TICKET_FORM_SPECS.map((spec) => {
+            const r = ib[spec.key];
+            return (
+              <PRow
+                key={spec.key}
+                label={`${spec.label}（×¥${fmt(r.unitPrice)}）`}
+                value={`${fmt(r.count)}枚`}
+                sub={`¥${fmt(r.amount)}`}
+              />
+            );
+          });
         })()}
         <PRow label="IB合計" value={`${fmt(data.ibTickets.totalCount)}枚`} sub={`¥${fmt(data.ibTickets.totalAmount)}`} bold />
       </PBlock>

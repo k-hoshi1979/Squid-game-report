@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   ITEM_LIST_SECTIONS,
   getSectionById,
+  usesLastReportDayForPeriodTotal,
   type ItemListSectionId,
 } from "@/lib/report/itemListSpec";
 import {
@@ -39,6 +40,32 @@ function sumAcrossDays(
     if (value !== undefined) sum += value;
   }
   return sum;
+}
+
+/** 当月で最後に日報がある日の値（特典残数・VIP累計向け） */
+function lastReportDayValue(
+  days: string[],
+  valuesByDate: Record<string, number[]>,
+  valueIndex: number,
+): number | undefined {
+  for (let i = days.length - 1; i >= 0; i--) {
+    const values = valuesByDate[days[i]!];
+    if (values === undefined) continue;
+    return values[valueIndex];
+  }
+  return undefined;
+}
+
+function formatPeriodTotal(
+  sectionId: ItemListSectionId,
+  days: string[],
+  valuesByDate: Record<string, number[]>,
+  valueIndex: number,
+): string {
+  if (usesLastReportDayForPeriodTotal(sectionId, valueIndex)) {
+    return formatCell(lastReportDayValue(days, valuesByDate, valueIndex));
+  }
+  return formatCell(sumAcrossDays(days, valuesByDate, valueIndex));
 }
 
 function buildItemsUrl(yearMonth: string, sectionId: ItemListSectionId): string {
@@ -93,7 +120,9 @@ export function ItemListTable({
         </div>
         <p className="text-xs text-[var(--muted-foreground)]">
           {section.kind === "numeric"
-            ? "項目を縦軸、通期合計（当月）と日付（昇順）を横軸に表示しています。"
+            ? sectionId === "ticket"
+              ? "項目を縦軸、通期合計（当月）と日付（昇順）を横軸に表示しています。特典・貸切VIPの通期合計は最終日報入力日の値です。"
+              : "項目を縦軸、通期合計（当月）と日付（昇順）を横軸に表示しています。"
             : "日付（昇順）ごとにテキストを表示しています。"}
         </p>
       </div>
@@ -153,6 +182,7 @@ function NumericSectionTable({
   days: string[];
   valuesByDate: Record<string, number[]>;
 }) {
+  const sectionId = section.id;
   return (
     <div className="overflow-x-auto">
       <table className="w-max min-w-full text-sm border-collapse">
@@ -187,7 +217,7 @@ function NumericSectionTable({
                   {label}
                 </td>
                 <td className="sticky left-[12rem] z-10 bg-[var(--card)] px-2 py-1.5 text-right tabular-nums text-xs font-semibold text-[var(--primary)] border-r border-[var(--border)]">
-                  {formatCell(sumAcrossDays(days, valuesByDate, valueIndex))}
+                  {formatPeriodTotal(sectionId, days, valuesByDate, valueIndex)}
                 </td>
                 {days.map((date) => {
                   const values = valuesByDate[date];

@@ -4,7 +4,14 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { ReportStatusBadge } from "@/components/dashboard/ReportStatusBadge";
-import { parseReportContent, ibTicketsWithDefaults, jerseyRentalWithDefaults, snsPostWithDefaults } from "@/types/report";
+import {
+  parseReportContent,
+  IB_TICKET_FORM_SPECS,
+  ibTicketsWithDefaults,
+  jerseyRentalWithDefaults,
+  policyMeasuresWithDefaults,
+  snsPostWithDefaults,
+} from "@/types/report";
 import { ticketTotalTaxEx } from "@/lib/tax";
 import type { ReportData } from "@/types/report";
 import { DeleteReportButton } from "@/components/reports/DeleteReportButton";
@@ -61,6 +68,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function StructuredReport({ data }: { data: ReportData }) {
   const ib = ibTicketsWithDefaults(data.ibTickets);
   const jr = jerseyRentalWithDefaults(data.jerseyRental);
+  const pm = policyMeasuresWithDefaults(data.policyMeasures);
   return (
     <div className="space-y-4">
       {/* ■チケット売上 */}
@@ -116,6 +124,12 @@ function StructuredReport({ data }: { data: ReportData }) {
         </div>
       </Card>
 
+      <Card title="■ 施策対応">
+        <Row label="①イカゲーム500円引き券回収" value={`${fmt(pm.game500CouponCollected)}枚`} />
+        <Row label="②シリアルカード配布" value={`${fmt(pm.serialCardDistributed)}枚`} />
+        <Row label="③お食事割引券配布" value={`${fmt(pm.mealDiscountDistributed)}枚`} />
+      </Card>
+
       {/* ■リテール売上 */}
       <Card title="■ リテール売上">
         <Row label="物販売り上げ（税抜）" value={`¥${fmt(data.retail.salesTaxEx)}`} />
@@ -136,26 +150,17 @@ function StructuredReport({ data }: { data: ReportData }) {
 
       {/* ■IB対応チケット */}
       <Card title="■ IB対応チケット">
-        {(
-          [
-            ["一般（平日）",       ib.genWeekday],
-            ["一般（休日）",       ib.genHoliday],
-            ["こども（平日）",     ib.childWeekday],
-            ["こども（休日）",     ib.childHoliday],
-            ["一般VIP（平日）",    ib.genVipWeekday],
-            ["一般VIP（休日）",    ib.genVipHoliday],
-            ["こどもVIP（平日）",  ib.childVipWeekday],
-            ["こどもVIP（休日）",  ib.childVipHoliday],
-            ["貸切VIP",            ib.vip],
-          ] as [string, { count: number; unitPrice: number; amount: number }][]
-        ).map(([label, row]) => (
-          <Row
-            key={label}
-            label={`${label}（×¥${fmt(row.unitPrice)}）`}
-            value={`${fmt(row.count)}枚`}
-            sub={`¥${fmt(row.amount)}`}
-          />
-        ))}
+        {IB_TICKET_FORM_SPECS.map((spec) => {
+          const row = ib[spec.key];
+          return (
+            <Row
+              key={spec.key}
+              label={`${spec.label}（×¥${fmt(row.unitPrice)}）`}
+              value={`${fmt(row.count)}枚`}
+              sub={`¥${fmt(row.amount)}`}
+            />
+          );
+        })}
         <div className="mt-1 pt-1 border-t border-[var(--border)]">
           <Row label="IB合計" value={`${fmt(data.ibTickets.totalCount)}枚`} sub={`¥${fmt(data.ibTickets.totalAmount)}`} highlight />
         </div>
