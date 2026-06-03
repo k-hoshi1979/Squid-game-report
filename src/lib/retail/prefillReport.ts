@@ -29,6 +29,14 @@ function hasPrefillData(row: {
   ib_child_vip_weekday_count: number | null;
   ib_child_vip_holiday_count: number | null;
   ib_vip_count: number | null;
+  ib_gen_weekday_discount500_count: number | null;
+  ib_gen_holiday_discount500_count: number | null;
+  ib_child_weekday_discount500_count: number | null;
+  ib_child_holiday_discount500_count: number | null;
+  ib_gen_vip_weekday_discount500_count: number | null;
+  ib_gen_vip_holiday_discount500_count: number | null;
+  ib_child_vip_weekday_discount500_count: number | null;
+  ib_child_vip_holiday_discount500_count: number | null;
   sns_circle_count: number | null;
   sns_square_count: number | null;
 }): boolean {
@@ -44,6 +52,14 @@ function hasPrefillData(row: {
     row.ib_child_vip_weekday_count,
     row.ib_child_vip_holiday_count,
     row.ib_vip_count,
+    row.ib_gen_weekday_discount500_count,
+    row.ib_gen_holiday_discount500_count,
+    row.ib_child_weekday_discount500_count,
+    row.ib_child_holiday_discount500_count,
+    row.ib_gen_vip_weekday_discount500_count,
+    row.ib_gen_vip_holiday_discount500_count,
+    row.ib_child_vip_weekday_discount500_count,
+    row.ib_child_vip_holiday_discount500_count,
     row.sns_circle_count,
     row.sns_square_count,
   ].some((n) => (n ?? 0) > 0);
@@ -80,6 +96,14 @@ export async function fetchRetailReportPrefill(
         childVipWeekday: { count: data.ib_child_vip_weekday_count ?? 0 },
         childVipHoliday: { count: data.ib_child_vip_holiday_count ?? 0 },
         vip: { count: data.ib_vip_count ?? 0 },
+        genWeekdayDiscount500: { count: data.ib_gen_weekday_discount500_count ?? 0 },
+        genHolidayDiscount500: { count: data.ib_gen_holiday_discount500_count ?? 0 },
+        childWeekdayDiscount500: { count: data.ib_child_weekday_discount500_count ?? 0 },
+        childHolidayDiscount500: { count: data.ib_child_holiday_discount500_count ?? 0 },
+        genVipWeekdayDiscount500: { count: data.ib_gen_vip_weekday_discount500_count ?? 0 },
+        genVipHolidayDiscount500: { count: data.ib_gen_vip_holiday_discount500_count ?? 0 },
+        childVipWeekdayDiscount500: { count: data.ib_child_vip_weekday_discount500_count ?? 0 },
+        childVipHolidayDiscount500: { count: data.ib_child_vip_holiday_discount500_count ?? 0 },
       } as Partial<ReportData["ibTickets"]>),
       snsPost: snsPostWithDefaults({
         circleCount: data.sns_circle_count ?? 0,

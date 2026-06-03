@@ -1,5 +1,4 @@
 import Papa from "papaparse";
-import { isUridomeReception } from "@/lib/csv/ticketCsvMapping";
 
 /** CSVの列インデックス */
 const COL = {
@@ -9,9 +8,7 @@ const COL = {
   RECEPTION: 4,   // 受付名 (E列)
   TICKET_TYPE: 7, // 販売区分名 (H列)
   PRICE: 8,       // 料金 (I列)
-  CONFIRMED: 10,  // 購入確定数 (K列)
-  STOP_SALE: 13,  // 売止数 (N列)
-  REMAINING: 14,  // 残枚数 (O列) ※売止用受付では売止枚数として扱う
+  CONFIRMED: 10,  // 購入確定数 (K列) — 全受付で枚数集計に使用
 } as const;
 
 export interface TicketSummaryRow {
@@ -45,14 +42,8 @@ function parseNumber(s: string): number {
   return parseInt(s.replace(/,/g, "").trim(), 10) || 0;
 }
 
-/** 集計に使う枚数（売止用受付は売止数→残枚数→購入確定数の順で採用） */
-function ticketCountFromRow(row: string[], receptionName: string): number {
-  if (isUridomeReception(receptionName)) {
-    const stopped = parseNumber(row[COL.STOP_SALE] ?? "");
-    if (stopped > 0) return stopped;
-    const remain = parseNumber(row[COL.REMAINING] ?? "");
-    if (remain > 0) return remain;
-  }
+/** 集計に使う枚数（K列: 購入確定数。★売止用受付も同じ） */
+function ticketCountFromRow(row: string[]): number {
   return parseNumber(row[COL.CONFIRMED] ?? "");
 }
 
@@ -100,7 +91,7 @@ export function parseTicketCsv(csvText: string): CsvParseResult {
   for (const row of dataRows) {
     const receptionName = row[COL.RECEPTION]?.trim() ?? "";
     const ticketType    = row[COL.TICKET_TYPE]?.trim() ?? "";
-    const count         = ticketCountFromRow(row, receptionName);
+    const count         = ticketCountFromRow(row);
     const price         = parseNumber(row[COL.PRICE] ?? "");
 
     if (!ticketType || count <= 0) continue;

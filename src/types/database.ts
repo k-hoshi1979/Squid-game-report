@@ -18,7 +18,15 @@ export type IbTicketType =
   | "gen_vip_holiday"
   | "child_vip_weekday"
   | "child_vip_holiday"
-  | "vip";
+  | "vip"
+  | "gen_weekday_discount500"
+  | "gen_holiday_discount500"
+  | "child_weekday_discount500"
+  | "child_holiday_discount500"
+  | "gen_vip_weekday_discount500"
+  | "gen_vip_holiday_discount500"
+  | "child_vip_weekday_discount500"
+  | "child_vip_holiday_discount500";
 export type IbEntryMode = "add" | "edit";
 export type RetailLogAction =
   | "jersey_rent"
@@ -346,6 +354,14 @@ export type Database = {
           child_vip_weekday_count: number;
           child_vip_holiday_count: number;
           vip_count: number;
+          gen_weekday_discount500_count: number;
+          gen_holiday_discount500_count: number;
+          child_weekday_discount500_count: number;
+          child_holiday_discount500_count: number;
+          gen_vip_weekday_discount500_count: number;
+          gen_vip_holiday_discount500_count: number;
+          child_vip_weekday_discount500_count: number;
+          child_vip_holiday_discount500_count: number;
           updated_at: string;
         };
         Insert: {
@@ -359,6 +375,14 @@ export type Database = {
           child_vip_weekday_count?: number;
           child_vip_holiday_count?: number;
           vip_count?: number;
+          gen_weekday_discount500_count?: number;
+          gen_holiday_discount500_count?: number;
+          child_weekday_discount500_count?: number;
+          child_holiday_discount500_count?: number;
+          gen_vip_weekday_discount500_count?: number;
+          gen_vip_holiday_discount500_count?: number;
+          child_vip_weekday_discount500_count?: number;
+          child_vip_holiday_discount500_count?: number;
           updated_at?: string;
         };
         Update: {
@@ -372,6 +396,14 @@ export type Database = {
           child_vip_weekday_count?: number;
           child_vip_holiday_count?: number;
           vip_count?: number;
+          gen_weekday_discount500_count?: number;
+          gen_holiday_discount500_count?: number;
+          child_weekday_discount500_count?: number;
+          child_holiday_discount500_count?: number;
+          gen_vip_weekday_discount500_count?: number;
+          gen_vip_holiday_discount500_count?: number;
+          child_vip_weekday_discount500_count?: number;
+          child_vip_holiday_discount500_count?: number;
           updated_at?: string;
         };
         Relationships: [];
@@ -548,6 +580,14 @@ export type Database = {
           ib_child_vip_weekday_count: number | null;
           ib_child_vip_holiday_count: number | null;
           ib_vip_count: number | null;
+          ib_gen_weekday_discount500_count: number | null;
+          ib_gen_holiday_discount500_count: number | null;
+          ib_child_weekday_discount500_count: number | null;
+          ib_child_holiday_discount500_count: number | null;
+          ib_gen_vip_weekday_discount500_count: number | null;
+          ib_gen_vip_holiday_discount500_count: number | null;
+          ib_child_vip_weekday_discount500_count: number | null;
+          ib_child_vip_holiday_discount500_count: number | null;
           sns_circle_count: number | null;
           sns_square_count: number | null;
         };
