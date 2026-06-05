@@ -17,7 +17,7 @@ const FORMAT_TABS: { id: ExportFormat; label: string; desc: string }[] = [
   {
     id: "ticket-items",
     label: "実績管理表",
-    desc: "B21〜B100 の80項目＋リテール・ジャージ・IB（Excel へコピペ向け）",
+    desc: "B21〜売止＋特典・貸切VIP＋リテール・ジャージ・IB（Excel へコピペ向け）",
   },
 ];
 
@@ -201,7 +201,7 @@ export function ReportDownloadButton() {
 
       {format === "ticket-items" && layout === "vertical" && (
         <p className="mt-3 text-xs text-[var(--muted-foreground)]">
-          ※ Excel で開き、B列の「値」（80行）をコピー → 実績管理表の該当日列（B21 起点）に貼り付け。続く17行はリテール・ジャージ・IB 用です。
+          ※ Excel で開き、「値」列をコピー → 実績管理表の該当日列（B21 起点）に貼り付け。売止　アフター５（こども）車いすの直後に特典・貸切VIP、その次がリテール売上です。
         </p>
       )}
 

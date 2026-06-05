@@ -97,6 +97,15 @@ export const EXCEL_TICKET_LABELS: readonly string[] = [
   ...URIDOME_TICKET_LABELS,
 ];
 
+/** 日報手入力（チケットCSV以外）。売止ブロック末尾とリテール売上の間 */
+export const TICKET_SUPPLEMENT_LABELS = ["特典", "貸切VIP"] as const;
+
+/** 実績管理表 CSV ダウンロード用チケット販売ブロック（売止末尾の直後に特典・貸切VIP） */
+export const TICKET_EXPORT_LABELS: readonly string[] = [
+  ...EXCEL_TICKET_LABELS,
+  ...TICKET_SUPPLEMENT_LABELS,
+];
+
 export interface AppendExportField {
   header: string;
   section: string;

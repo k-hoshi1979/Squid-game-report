@@ -1,7 +1,10 @@
 import {
   APPEND_EXPORT_FIELDS,
   EXCEL_TICKET_LABELS,
+  TICKET_SUPPLEMENT_LABELS,
 } from "@/lib/csv/excelExportSpec";
+
+export { TICKET_SUPPLEMENT_LABELS };
 
 export type ItemListSectionId =
   | "ticket"
@@ -49,9 +52,6 @@ const POLICY_MEASURES_LABELS = [
 ] as const;
 
 const SNS_LABELS = ["〇", "▢", "合計"] as const;
-
-/** チケットCSV以外の日報入力（チケット売上タブ末尾） */
-export const TICKET_SUPPLEMENT_LABELS = ["特典", "貸切VIP"] as const;
 
 /** 項目一覧の数値配列インデックス（通期合計は最終日報日の値を表示） */
 export const TICKET_TOKUTEN_VALUE_INDEX = EXCEL_TICKET_LABELS.length;

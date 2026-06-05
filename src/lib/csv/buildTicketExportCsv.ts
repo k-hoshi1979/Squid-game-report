@@ -8,6 +8,7 @@ import {
 import {
   APPEND_EXPORT_FIELDS,
   EXCEL_TICKET_LABELS,
+  TICKET_EXPORT_LABELS,
 } from "@/lib/csv/excelExportSpec";
 import { mapTicketRowToIndex } from "@/lib/csv/mapTicketRowToIndex";
 
@@ -32,6 +33,18 @@ function buildTicketCounts(
   }
 
   return counts;
+}
+
+/** 実績管理表 B 列へ貼り付け用（売止末尾→特典→貸切VIP→リテール） */
+function buildTicketExportValues(
+  data: ReportData | null,
+  csvCounts: number[],
+): number[] {
+  return [
+    ...csvCounts,
+    data?.tokuten?.todayRemaining ?? 0,
+    data?.kashikiriVip?.todayTotal ?? 0,
+  ];
 }
 
 function buildAppendValues(data: ReportData | null): number[] {
@@ -71,16 +84,21 @@ function buildAppendValues(data: ReportData | null): number[] {
 export interface TicketExportRow {
   date: string;
   reporter: string;
+  /** CSV 券種マッピング用（80+売止19） */
   ticketCounts: number[];
+  /** 実績管理表 B 列貼り付け用（99券種＋特典・貸切VIP） */
+  ticketExportValues: number[];
   appendValues: number[];
 }
 
 export function buildTicketExportRow(report: DailyReport): TicketExportRow {
   const data = parseReportContent(report.content);
+  const ticketCounts = buildTicketCounts(data?.csv?.rows ?? []);
   return {
     date: report.report_date,
     reporter: data?.reporter ?? "",
-    ticketCounts: buildTicketCounts(data?.csv?.rows ?? []),
+    ticketCounts,
+    ticketExportValues: buildTicketExportValues(data, ticketCounts),
     appendValues: buildAppendValues(data),
   };
 }
@@ -97,11 +115,12 @@ function buildVerticalCsv(rows: TicketExportRow[]): string {
     lines.push([escapeCsv("報告者"), escapeCsv(row.reporter)].join(","));
     lines.push([escapeCsv("項目"), escapeCsv("値")].join(","));
 
-    for (let j = 0; j < EXCEL_TICKET_LABELS.length; j++) {
+    for (let j = 0; j < TICKET_EXPORT_LABELS.length; j++) {
       lines.push(
-        [escapeCsv(EXCEL_TICKET_LABELS[j]), escapeCsv(row.ticketCounts[j])].join(
-          ",",
-        ),
+        [
+          escapeCsv(TICKET_EXPORT_LABELS[j]),
+          escapeCsv(row.ticketExportValues[j]),
+        ].join(","),
       );
     }
 
@@ -126,7 +145,7 @@ function buildHorizontalCsv(rows: TicketExportRow[]): string {
   const headers = [
     "日付",
     "報告者",
-    ...EXCEL_TICKET_LABELS,
+    ...TICKET_EXPORT_LABELS,
     ...APPEND_EXPORT_FIELDS.map((f) => f.header),
   ];
 
@@ -134,7 +153,7 @@ function buildHorizontalCsv(rows: TicketExportRow[]): string {
     [
       row.date,
       row.reporter,
-      ...row.ticketCounts,
+      ...row.ticketExportValues,
       ...row.appendValues,
     ]
       .map(escapeCsv)
