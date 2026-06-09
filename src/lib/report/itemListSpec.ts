@@ -1,6 +1,7 @@
 import {
   APPEND_EXPORT_FIELDS,
   EXCEL_TICKET_LABELS,
+  RETAIL_EXPORT_FIELD_COUNT,
   TICKET_SUPPLEMENT_LABELS,
 } from "@/lib/csv/excelExportSpec";
 
@@ -27,6 +28,10 @@ export interface ItemListSection {
   rowOffset: number;
 }
 
+/** 実績管理表 CSV のリテール項目数（物販税抜・税込・決済件数） */
+export const APPEND_RETAIL_FIELD_COUNT = RETAIL_EXPORT_FIELD_COUNT;
+
+/** 項目一覧「リテール売上」タブの行ラベル */
 const RETAIL_LABELS = APPEND_EXPORT_FIELDS.filter(
   (f) => f.section === "■リテール売上",
 ).map((f) => f.header);

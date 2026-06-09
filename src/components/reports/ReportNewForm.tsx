@@ -17,7 +17,11 @@ import {
   JERSEY_RENTAL_UNIT_SNS,
 } from "@/types/report";
 import type { RetailReportPrefill } from "@/lib/retail/prefillReport";
-import { taxExFromTaxIn, ticketTotalTaxEx } from "@/lib/tax";
+import {
+  retailMdSalesExcludingIbTickets,
+  taxExFromTaxIn,
+  ticketTotalTaxEx,
+} from "@/lib/tax";
 
 /** ReportData.csv を CsvParseResult 互換の形式に変換する（旧データ groups なし対応）*/
 function reportCsvToParseResult(csv: NonNullable<ReportData["csv"]>): CsvParseResult {
@@ -385,6 +389,11 @@ export function ReportNewForm({
   };
 
   // チケット合計
+  const retailMdSales = useMemo(
+    () => retailMdSalesExcludingIbTickets(retail.taxIn, ibTickets.totalAmount),
+    [retail.taxIn, ibTickets.totalAmount],
+  );
+
   const ticketTotal = useMemo(() => {
     const taxIn = (csvData?.totalAmount ?? 0) + tokuten.amount + vip.amount;
     return {
@@ -739,8 +748,16 @@ export function ReportNewForm({
             { label: "物販（税抜）", value: `¥${fmt(retail.taxEx)}` },
             { label: "物販（税込）", value: `¥${fmt(Math.round(retail.taxIn))}`, highlight: true },
             { label: "決済件数", value: `${fmt(retail.payCount)} 件` },
+            {
+              label: "チケット売上を除くMD売上",
+              value: `¥${fmt(retailMdSales)}`,
+              highlight: true,
+            },
           ]} />
         )}
+        <p className="text-xs text-[var(--muted-foreground)] pl-1">
+          チケット売上を除くMD売上 ＝ リテール売上合計（税込）− IBチケット対応合計（税抜）
+        </p>
       </Card>
 
       {/* ── ■ジャージレンタル（リテール合計とは別計上） ── */}
@@ -1027,6 +1044,14 @@ function ReportPreview({ data }: { data: ReportData }) {
         <PRow label="物販（税抜）"  value={`¥${fmt(data.retail.salesTaxEx)}`} />
         <PRow label="物販（税込）"  value={`¥${fmt(Math.round(data.retail.salesTaxIn))}`} bold />
         <PRow label="決済件数"      value={`${fmt(data.retail.paymentCount)}件`} />
+        <PRow
+          label="チケット売上を除くMD売上"
+          value={`¥${fmt(retailMdSalesExcludingIbTickets(
+            data.retail.salesTaxIn,
+            ibTicketsWithDefaults(data.ibTickets).totalAmount,
+          ))}`}
+          bold
+        />
       </PBlock>
 
       <PBlock title="■ ジャージレンタル">

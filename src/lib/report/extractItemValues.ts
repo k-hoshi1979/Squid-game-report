@@ -5,7 +5,10 @@ import {
   snsPostWithDefaults,
 } from "@/types/report";
 import { buildTicketExportRow } from "@/lib/csv/buildTicketExportCsv";
-import { NUMERIC_ROW_COUNT, RETAIL_LABEL_COUNT } from "@/lib/report/itemListSpec";
+import {
+  APPEND_RETAIL_FIELD_COUNT,
+  NUMERIC_ROW_COUNT,
+} from "@/lib/report/itemListSpec";
 import type { DailyReport } from "@/types/database";
 
 export interface ItemListTextFields {
@@ -29,14 +32,14 @@ export function extractNumericValuesFromContent(content: string): number[] {
   const jersey = jerseyRentalWithDefaults(data?.jerseyRental);
   const pm = policyMeasuresWithDefaults(data?.policyMeasures);
 
-  const retail = row.appendValues.slice(0, RETAIL_LABEL_COUNT);
-  const ib = row.appendValues.slice(RETAIL_LABEL_COUNT + 3);
+  const retailAppend = row.appendValues.slice(0, APPEND_RETAIL_FIELD_COUNT);
+  const ib = row.appendValues.slice(APPEND_RETAIL_FIELD_COUNT + 3);
 
   return [
     ...row.ticketCounts,
     tokuten?.todayRemaining ?? 0,
     vip?.todayTotal ?? 0,
-    ...retail,
+    ...retailAppend,
     jersey.normalCount,
     jersey.snsCount,
     jersey.normalCount + jersey.snsCount,

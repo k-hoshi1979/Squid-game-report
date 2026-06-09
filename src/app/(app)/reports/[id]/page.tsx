@@ -12,7 +12,7 @@ import {
   policyMeasuresWithDefaults,
   snsPostWithDefaults,
 } from "@/types/report";
-import { ticketTotalTaxEx } from "@/lib/tax";
+import { retailMdSalesExcludingIbTickets, ticketTotalTaxEx } from "@/lib/tax";
 import type { ReportData } from "@/types/report";
 import { DeleteReportButton } from "@/components/reports/DeleteReportButton";
 import { ConfirmReportButton } from "@/components/reports/ConfirmReportButton";
@@ -135,6 +135,16 @@ function StructuredReport({ data }: { data: ReportData }) {
         <Row label="物販売り上げ（税抜）" value={`¥${fmt(data.retail.salesTaxEx)}`} />
         <Row label="物販売り上げ（税込）" value={`¥${fmt(Math.round(data.retail.salesTaxIn))}`} highlight />
         <Row label="決済件数" value={`${fmt(data.retail.paymentCount)}件`} />
+        <div className="mt-1 pt-1 border-t border-[var(--border)]">
+          <Row
+            label="チケット売上を除くMD売上"
+            value={`¥${fmt(retailMdSalesExcludingIbTickets(
+              data.retail.salesTaxIn,
+              ib.totalAmount,
+            ))}`}
+            highlight
+          />
+        </div>
       </Card>
 
       <Card title="■ ジャージレンタル">

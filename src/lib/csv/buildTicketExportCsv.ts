@@ -6,11 +6,17 @@ import {
   type ReportData,
 } from "@/types/report";
 import {
-  APPEND_EXPORT_FIELDS,
   EXCEL_TICKET_LABELS,
+  IB_EXPORT_FIELDS,
+  JERSEY_EXPORT_FIELDS,
+  RETAIL_EXPORT_FIELDS,
+  RETAIL_EXPORT_FIELD_COUNT,
+  JERSEY_EXPORT_FIELD_COUNT,
   TICKET_EXPORT_LABELS,
+  TICKET_SALES_EXPORT_SECTION,
 } from "@/lib/csv/excelExportSpec";
 import { mapTicketRowToIndex } from "@/lib/csv/mapTicketRowToIndex";
+import { retailMdSalesExcludingIbTickets } from "@/lib/tax";
 
 export type TicketExportLayout = "vertical" | "horizontal";
 
@@ -35,7 +41,7 @@ function buildTicketCounts(
   return counts;
 }
 
-/** 実績管理表 B 列へ貼り付け用（売止末尾→特典→貸切VIP→リテール） */
+/** 実績管理表 B 列へ貼り付け用（売止末尾→特典→貸切VIP） */
 function buildTicketExportValues(
   data: ReportData | null,
   csvCounts: number[],
@@ -52,10 +58,13 @@ function buildAppendValues(data: ReportData | null): number[] {
   const jersey = jerseyRentalWithDefaults(data?.jerseyRental);
   const ib = ibTicketsWithDefaults(data?.ibTickets);
 
+  const salesTaxIn = retail?.salesTaxIn ?? 0;
+
   return [
     retail?.salesTaxEx ?? 0,
-    retail?.salesTaxIn ?? 0,
+    salesTaxIn,
     retail?.paymentCount ?? 0,
+    retailMdSalesExcludingIbTickets(salesTaxIn, ib.totalAmount),
     jersey.normalCount,
     jersey.snsCount,
     jersey.totalAmount,
@@ -81,6 +90,16 @@ function buildAppendValues(data: ReportData | null): number[] {
   ];
 }
 
+function splitAppendValues(appendValues: number[]) {
+  const retailEnd = RETAIL_EXPORT_FIELD_COUNT;
+  const jerseyEnd = retailEnd + JERSEY_EXPORT_FIELD_COUNT;
+  return {
+    retail: appendValues.slice(0, retailEnd),
+    jersey: appendValues.slice(retailEnd, jerseyEnd),
+    ib: appendValues.slice(jerseyEnd),
+  };
+}
+
 export interface TicketExportRow {
   date: string;
   reporter: string;
@@ -103,6 +122,20 @@ export function buildTicketExportRow(report: DailyReport): TicketExportRow {
   };
 }
 
+function appendSectionLines(
+  lines: string[],
+  section: string,
+  fields: { header: string }[],
+  values: number[],
+): void {
+  lines.push([escapeCsv(section), ""].join(","));
+  for (let k = 0; k < fields.length; k++) {
+    lines.push(
+      [escapeCsv(fields[k].header), escapeCsv(values[k])].join(","),
+    );
+  }
+}
+
 /** 縦並び（Excel へ値列をコピペしやすい形式） */
 function buildVerticalCsv(rows: TicketExportRow[]): string {
   const lines: string[] = [];
@@ -115,6 +148,12 @@ function buildVerticalCsv(rows: TicketExportRow[]): string {
     lines.push([escapeCsv("報告者"), escapeCsv(row.reporter)].join(","));
     lines.push([escapeCsv("項目"), escapeCsv("値")].join(","));
 
+    const { retail, jersey, ib } = splitAppendValues(row.appendValues);
+
+    appendSectionLines(lines, "■リテール売上", RETAIL_EXPORT_FIELDS, retail);
+    appendSectionLines(lines, "■ジャージレンタル", JERSEY_EXPORT_FIELDS, jersey);
+
+    lines.push([escapeCsv(TICKET_SALES_EXPORT_SECTION), ""].join(","));
     for (let j = 0; j < TICKET_EXPORT_LABELS.length; j++) {
       lines.push(
         [
@@ -124,17 +163,7 @@ function buildVerticalCsv(rows: TicketExportRow[]): string {
       );
     }
 
-    let currentSection = "";
-    for (let k = 0; k < APPEND_EXPORT_FIELDS.length; k++) {
-      const field = APPEND_EXPORT_FIELDS[k];
-      if (field.section !== currentSection) {
-        currentSection = field.section;
-        lines.push([escapeCsv(field.section), ""].join(","));
-      }
-      lines.push(
-        [escapeCsv(field.header), escapeCsv(row.appendValues[k])].join(","),
-      );
-    }
+    appendSectionLines(lines, "■IB対応チケット", IB_EXPORT_FIELDS, ib);
   }
 
   return "\uFEFF" + lines.join("\r\n");
@@ -145,20 +174,25 @@ function buildHorizontalCsv(rows: TicketExportRow[]): string {
   const headers = [
     "日付",
     "報告者",
+    ...RETAIL_EXPORT_FIELDS.map((f) => f.header),
+    ...JERSEY_EXPORT_FIELDS.map((f) => f.header),
     ...TICKET_EXPORT_LABELS,
-    ...APPEND_EXPORT_FIELDS.map((f) => f.header),
+    ...IB_EXPORT_FIELDS.map((f) => f.header),
   ];
 
-  const dataLines = rows.map((row) =>
-    [
+  const dataLines = rows.map((row) => {
+    const { retail, jersey, ib } = splitAppendValues(row.appendValues);
+    return [
       row.date,
       row.reporter,
+      ...retail,
+      ...jersey,
       ...row.ticketExportValues,
-      ...row.appendValues,
+      ...ib,
     ]
       .map(escapeCsv)
-      .join(","),
-  );
+      .join(",");
+  });
 
   return (
     "\uFEFF" +

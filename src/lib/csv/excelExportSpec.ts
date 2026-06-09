@@ -111,14 +111,20 @@ export interface AppendExportField {
   section: string;
 }
 
-/** B100 以降に続ける日報入力項目 */
-export const APPEND_EXPORT_FIELDS: AppendExportField[] = [
+export const RETAIL_EXPORT_FIELDS: AppendExportField[] = [
   { section: "■リテール売上", header: "物販売上（税抜）" },
   { section: "■リテール売上", header: "物販売上（税込）" },
   { section: "■リテール売上", header: "決済件数" },
+  { section: "■リテール売上", header: "チケット売上を除くMD売上" },
+];
+
+export const JERSEY_EXPORT_FIELDS: AppendExportField[] = [
   { section: "■ジャージレンタル", header: "ジャージレンタル通常" },
   { section: "■ジャージレンタル", header: "ジャージレンタルSNS" },
   { section: "■ジャージレンタル", header: "レンタル合計" },
+];
+
+export const IB_EXPORT_FIELDS: AppendExportField[] = [
   { section: "■IB対応チケット", header: "一般（平日）" },
   { section: "■IB対応チケット", header: "一般（休日）" },
   { section: "■IB対応チケット", header: "こども（平日）" },
@@ -139,5 +145,18 @@ export const APPEND_EXPORT_FIELDS: AppendExportField[] = [
   { section: "■IB対応チケット", header: "IB合計枚数" },
   { section: "■IB対応チケット", header: "IB合計金額" },
 ];
+
+/** appendValues 組み立て順（項目一覧等で参照） */
+export const APPEND_EXPORT_FIELDS: AppendExportField[] = [
+  ...RETAIL_EXPORT_FIELDS,
+  ...JERSEY_EXPORT_FIELDS,
+  ...IB_EXPORT_FIELDS,
+];
+
+export const RETAIL_EXPORT_FIELD_COUNT = RETAIL_EXPORT_FIELDS.length;
+export const JERSEY_EXPORT_FIELD_COUNT = JERSEY_EXPORT_FIELDS.length;
+
+/** 実績管理表 CSV のセクション見出し（チケット販売ブロック） */
+export const TICKET_SALES_EXPORT_SECTION = "■チケット売上" as const;
 
 export const EXCEL_TICKET_ROW_START = 21;
