@@ -115,7 +115,7 @@ export const RETAIL_EXPORT_FIELDS: AppendExportField[] = [
   { section: "■リテール売上", header: "物販売上（税抜）" },
   { section: "■リテール売上", header: "物販売上（税込）" },
   { section: "■リテール売上", header: "決済件数" },
-  { section: "■リテール売上", header: "チケット売上を除くMD売上" },
+  { section: "■リテール売上", header: "チケット売上を除くMD売上（税抜）" },
 ];
 
 export const JERSEY_EXPORT_FIELDS: AppendExportField[] = [

@@ -104,6 +104,11 @@ export function isUridomeReception(receptionName: string): boolean {
   return categoryFromReceptionName(receptionName) === "uridome";
 }
 
+/** E列がインナー受付の行か（モールプロ添付のチケット集計除外用） */
+export function isInnerReception(receptionName: string): boolean {
+  return categoryFromReceptionName(receptionName) === "inner";
+}
+
 export function resolveExcelLabel(
   receptionName: string,
   ticketType: string,

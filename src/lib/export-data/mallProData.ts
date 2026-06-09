@@ -1,4 +1,5 @@
-import type { ReportData } from "@/types/report";
+import type { CsvTicketRow, ReportData } from "@/types/report";
+import { isInnerReception } from "@/lib/csv/ticketCsvMapping";
 import { taxExFromTaxIn } from "@/lib/tax";
 
 export interface MallProPurchaseRow {
@@ -34,22 +35,47 @@ export function formatReportDateJa(dateStr: string): string {
   return `${label}（${w}）`;
 }
 
+/** CSV チケット行からインナー受付（E列）を除いた枚数・税込売上を集計 */
+export function sumCsvTicketsExcludingInnerReception(
+  rows: CsvTicketRow[] | undefined,
+): { count: number; amountTaxIn: number } {
+  if (!rows?.length) return { count: 0, amountTaxIn: 0 };
+
+  let count = 0;
+  let amountTaxIn = 0;
+  for (const row of rows) {
+    if (isInnerReception(row.receptionName)) continue;
+    count += row.count;
+    amountTaxIn += row.amount;
+  }
+  return { count, amountTaxIn };
+}
+
 /** 日報データからモールプロ添付用の数値を抽出 */
 export function buildMallProData(
   reportDate: string,
   data: ReportData,
 ): MallProExportData {
-  const ticketTaxEx = taxExFromTaxIn(data.csv?.totalAmount ?? 0);
+  const csvRows = data.csv?.rows;
+  const ticket =
+    csvRows && csvRows.length > 0
+      ? (() => {
+          const { count, amountTaxIn } =
+            sumCsvTicketsExcludingInnerReception(csvRows);
+          return { count, amount: taxExFromTaxIn(amountTaxIn) };
+        })()
+      : {
+          count: data.csv?.totalCount ?? 0,
+          amount: taxExFromTaxIn(data.csv?.totalAmount ?? 0),
+        };
+
   const tokutenTaxEx = taxExFromTaxIn(data.tokuten?.amount ?? 0);
   const vipTaxEx = taxExFromTaxIn(data.kashikiriVip?.amount ?? 0);
 
   return {
     reportDate,
     reportDateLabel: formatReportDateJa(reportDate),
-    ticketPurchase: {
-      count: data.csv?.totalCount ?? 0,
-      amount: ticketTaxEx,
-    },
+    ticketPurchase: ticket,
     tokutenPurchase: {
       count: data.tokuten?.salesCount ?? 0,
       amount: tokutenTaxEx,
@@ -58,6 +84,6 @@ export function buildMallProData(
       count: data.kashikiriVip?.salesCount ?? 0,
       amount: vipTaxEx,
     },
-    totalTaxEx: ticketTaxEx + tokutenTaxEx + vipTaxEx,
+    totalTaxEx: ticket.amount + tokutenTaxEx + vipTaxEx,
   };
 }

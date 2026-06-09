@@ -4,17 +4,26 @@ export function taxExFromTaxIn(taxIn: number): number {
   return Math.floor(taxIn / 1.1);
 }
 
+/** リテール売上の税抜金額（手入力税抜を優先、未入力時は税込から算出） */
+export function retailSalesTaxEx(
+  salesTaxEx: number,
+  salesTaxIn: number,
+): number {
+  const ex = Number(salesTaxEx);
+  if (Number.isFinite(ex) && ex > 0) return Math.floor(ex);
+  return taxExFromTaxIn(salesTaxIn);
+}
+
 /**
- * チケット売上を除くMD売上
- * リテール売上合計（税込）− IBチケット対応合計（税抜）
+ * チケット売上を除くMD売上（税抜）
+ * リテール売上合計（税抜）− IBチケット対応合計（税抜）
  */
 export function retailMdSalesExcludingIbTickets(
+  salesTaxEx: number,
   salesTaxIn: number,
   ibTotalAmount: number,
 ): number {
-  const retailIn = Math.round(salesTaxIn);
-  if (!Number.isFinite(retailIn)) return 0;
-  return retailIn - taxExFromTaxIn(ibTotalAmount);
+  return retailSalesTaxEx(salesTaxEx, salesTaxIn) - taxExFromTaxIn(ibTotalAmount);
 }
 
 /** チケット売上合計の税抜金額（保存値より税込から再計算を優先） */

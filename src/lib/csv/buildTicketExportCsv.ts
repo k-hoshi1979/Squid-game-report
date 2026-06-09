@@ -58,13 +58,14 @@ function buildAppendValues(data: ReportData | null): number[] {
   const jersey = jerseyRentalWithDefaults(data?.jerseyRental);
   const ib = ibTicketsWithDefaults(data?.ibTickets);
 
+  const salesTaxEx = retail?.salesTaxEx ?? 0;
   const salesTaxIn = retail?.salesTaxIn ?? 0;
 
   return [
-    retail?.salesTaxEx ?? 0,
+    salesTaxEx,
     salesTaxIn,
     retail?.paymentCount ?? 0,
-    retailMdSalesExcludingIbTickets(salesTaxIn, ib.totalAmount),
+    retailMdSalesExcludingIbTickets(salesTaxEx, salesTaxIn, ib.totalAmount),
     jersey.normalCount,
     jersey.snsCount,
     jersey.totalAmount,

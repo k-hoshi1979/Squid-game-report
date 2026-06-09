@@ -390,8 +390,13 @@ export function ReportNewForm({
 
   // チケット合計
   const retailMdSales = useMemo(
-    () => retailMdSalesExcludingIbTickets(retail.taxIn, ibTickets.totalAmount),
-    [retail.taxIn, ibTickets.totalAmount],
+    () =>
+      retailMdSalesExcludingIbTickets(
+        retail.taxEx,
+        retail.taxIn,
+        ibTickets.totalAmount,
+      ),
+    [retail.taxEx, retail.taxIn, ibTickets.totalAmount],
   );
 
   const ticketTotal = useMemo(() => {
@@ -749,14 +754,14 @@ export function ReportNewForm({
             { label: "物販（税込）", value: `¥${fmt(Math.round(retail.taxIn))}`, highlight: true },
             { label: "決済件数", value: `${fmt(retail.payCount)} 件` },
             {
-              label: "チケット売上を除くMD売上",
+              label: "チケット売上を除くMD売上（税抜）",
               value: `¥${fmt(retailMdSales)}`,
               highlight: true,
             },
           ]} />
         )}
         <p className="text-xs text-[var(--muted-foreground)] pl-1">
-          チケット売上を除くMD売上 ＝ リテール売上合計（税込）− IBチケット対応合計（税抜）
+          チケット売上を除くMD売上（税抜） ＝ リテール売上合計（税抜）− IBチケット対応合計（税抜）
         </p>
       </Card>
 
@@ -1045,8 +1050,9 @@ function ReportPreview({ data }: { data: ReportData }) {
         <PRow label="物販（税込）"  value={`¥${fmt(Math.round(data.retail.salesTaxIn))}`} bold />
         <PRow label="決済件数"      value={`${fmt(data.retail.paymentCount)}件`} />
         <PRow
-          label="チケット売上を除くMD売上"
+          label="チケット売上を除くMD売上（税抜）"
           value={`¥${fmt(retailMdSalesExcludingIbTickets(
+            data.retail.salesTaxEx,
             data.retail.salesTaxIn,
             ibTicketsWithDefaults(data.ibTickets).totalAmount,
           ))}`}

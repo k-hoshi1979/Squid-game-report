@@ -137,8 +137,9 @@ function StructuredReport({ data }: { data: ReportData }) {
         <Row label="決済件数" value={`${fmt(data.retail.paymentCount)}件`} />
         <div className="mt-1 pt-1 border-t border-[var(--border)]">
           <Row
-            label="チケット売上を除くMD売上"
+            label="チケット売上を除くMD売上（税抜）"
             value={`¥${fmt(retailMdSalesExcludingIbTickets(
+              data.retail.salesTaxEx,
               data.retail.salesTaxIn,
               ib.totalAmount,
             ))}`}
