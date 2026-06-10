@@ -1,5 +1,8 @@
 import type { CsvTicketRow, ReportData } from "@/types/report";
-import { isInnerReception } from "@/lib/csv/ticketCsvMapping";
+import {
+  isInnerReception,
+  isUridomeReception,
+} from "@/lib/csv/ticketCsvMapping";
 import { taxExFromTaxIn } from "@/lib/tax";
 
 export interface MallProPurchaseRow {
@@ -35,8 +38,24 @@ export function formatReportDateJa(dateStr: string): string {
   return `${label}（${w}）`;
 }
 
-/** CSV チケット行からインナー受付（E列）を除いた枚数・税込売上を集計 */
-export function sumCsvTicketsExcludingInnerReception(
+/** モールプロ添付のチケット集計から除外する行か */
+export function isExcludedFromMallProTicket(row: CsvTicketRow): boolean {
+  // インナー受付（E列）
+  if (isInnerReception(row.receptionName)) return true;
+  // 売止貸切（売止用受付の貸切系券種）
+  if (isUridomeReception(row.receptionName) && row.ticketType.includes("貸切")) {
+    return true;
+  }
+  // 単価0円の券種すべて
+  if (row.unitPrice <= 0) return true;
+  return false;
+}
+
+/**
+ * CSV チケット行からモールプロ報告対象の枚数・税込売上を集計
+ * （インナー受付・売止貸切・単価0円の行を除外）
+ */
+export function sumCsvTicketsForMallPro(
   rows: CsvTicketRow[] | undefined,
 ): { count: number; amountTaxIn: number } {
   if (!rows?.length) return { count: 0, amountTaxIn: 0 };
@@ -44,7 +63,7 @@ export function sumCsvTicketsExcludingInnerReception(
   let count = 0;
   let amountTaxIn = 0;
   for (const row of rows) {
-    if (isInnerReception(row.receptionName)) continue;
+    if (isExcludedFromMallProTicket(row)) continue;
     count += row.count;
     amountTaxIn += row.amount;
   }
@@ -60,8 +79,7 @@ export function buildMallProData(
   const ticket =
     csvRows && csvRows.length > 0
       ? (() => {
-          const { count, amountTaxIn } =
-            sumCsvTicketsExcludingInnerReception(csvRows);
+          const { count, amountTaxIn } = sumCsvTicketsForMallPro(csvRows);
           return { count, amount: taxExFromTaxIn(amountTaxIn) };
         })()
       : {
