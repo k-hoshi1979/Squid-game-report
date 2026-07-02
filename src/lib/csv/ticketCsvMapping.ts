@@ -10,6 +10,7 @@ const RECEPTION_RULES: { pattern: RegExp; category: TicketCategory | "skip" }[] 
   { pattern: /インナー|inner/i, category: "inner" },
   { pattern: /電通|dentsu/i, category: "dentsu" },
   { pattern: /日本旅行|日旅|^NTA$/i, category: "nta" },
+  { pattern: /特別プラン/, category: "specialPlan" },
   { pattern: /一般発売|入場券/, category: "general" },
 ];
 
@@ -54,6 +55,7 @@ const CATEGORY_LABEL_PREFIX: Record<
   string
 > = {
   discount500: "【500円割引】",
+  specialPlan: "",  // H列「特別プラン」がそのままラベル
   ib: "IB　",
   discount500ib: "【500円割引】IB　",
   inner: "インナー　",

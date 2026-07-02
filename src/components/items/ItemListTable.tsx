@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import {
   ITEM_LIST_SECTIONS,
   getSectionById,
-  usesLastReportDayForPeriodTotal,
   type ItemListSectionId,
 } from "@/lib/report/itemListSpec";
 import {
@@ -28,7 +27,7 @@ function formatCell(value: number | undefined): string {
   return new Intl.NumberFormat("ja-JP").format(value);
 }
 
-/** 表示中の日付列を横断した合計（通期合計） */
+/** 表示中の日付列を横断した合計（月間合計） */
 function sumAcrossDays(
   days: string[],
   valuesByDate: Record<string, number[]>,
@@ -42,29 +41,11 @@ function sumAcrossDays(
   return sum;
 }
 
-/** 当月で最後に日報がある日の値（特典残数・VIP累計向け） */
-function lastReportDayValue(
-  days: string[],
-  valuesByDate: Record<string, number[]>,
-  valueIndex: number,
-): number | undefined {
-  for (let i = days.length - 1; i >= 0; i--) {
-    const values = valuesByDate[days[i]!];
-    if (values === undefined) continue;
-    return values[valueIndex];
-  }
-  return undefined;
-}
-
 function formatPeriodTotal(
-  sectionId: ItemListSectionId,
   days: string[],
   valuesByDate: Record<string, number[]>,
   valueIndex: number,
 ): string {
-  if (usesLastReportDayForPeriodTotal(sectionId, valueIndex)) {
-    return formatCell(lastReportDayValue(days, valuesByDate, valueIndex));
-  }
   return formatCell(sumAcrossDays(days, valuesByDate, valueIndex));
 }
 
@@ -121,8 +102,8 @@ export function ItemListTable({
         <p className="text-xs text-[var(--muted-foreground)]">
           {section.kind === "numeric"
             ? sectionId === "ticket"
-              ? "項目を縦軸、通期合計（当月）と日付（昇順）を横軸に表示しています。特典・貸切VIPの通期合計は最終日報入力日の値です。"
-              : "項目を縦軸、通期合計（当月）と日付（昇順）を横軸に表示しています。"
+              ? "項目を縦軸、月間合計と日付（昇順）を横軸に表示しています。特典・貸切VIPは当日販売数（出数）です。"
+              : "項目を縦軸、月間合計と日付（昇順）を横軸に表示しています。"
             : "日付（昇順）ごとにテキストを表示しています。"}
         </p>
       </div>
@@ -192,7 +173,7 @@ function NumericSectionTable({
               項目
             </th>
             <th className="sticky left-[12rem] z-20 bg-[var(--muted)] px-2 py-2 text-center font-semibold text-[var(--foreground)] min-w-[4.5rem] whitespace-nowrap border-r border-[var(--border)]">
-              通期合計
+              月間合計
             </th>
             {days.map((date) => (
               <th
@@ -217,7 +198,7 @@ function NumericSectionTable({
                   {label}
                 </td>
                 <td className="sticky left-[12rem] z-10 bg-[var(--card)] px-2 py-1.5 text-right tabular-nums text-xs font-semibold text-[var(--primary)] border-r border-[var(--border)]">
-                  {formatPeriodTotal(sectionId, days, valuesByDate, valueIndex)}
+                  {formatPeriodTotal(days, valuesByDate, valueIndex)}
                 </td>
                 {days.map((date) => {
                   const values = valuesByDate[date];

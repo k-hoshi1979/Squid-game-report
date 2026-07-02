@@ -58,23 +58,7 @@ const POLICY_MEASURES_LABELS = [
 
 const SNS_LABELS = ["〇", "▢", "合計"] as const;
 
-/** 項目一覧の数値配列インデックス（通期合計は最終日報日の値を表示） */
-export const TICKET_TOKUTEN_VALUE_INDEX = EXCEL_TICKET_LABELS.length;
-export const TICKET_KASHIKIRI_VIP_VALUE_INDEX = EXCEL_TICKET_LABELS.length + 1;
-
-/** 通期合計に当月の最終日報入力日の値を使う行 */
-export function usesLastReportDayForPeriodTotal(
-  sectionId: ItemListSectionId,
-  valueIndex: number,
-): boolean {
-  return (
-    sectionId === "ticket" &&
-    (valueIndex === TICKET_TOKUTEN_VALUE_INDEX ||
-      valueIndex === TICKET_KASHIKIRI_VIP_VALUE_INDEX)
-  );
-}
-
-/** 項目一覧「チケット売上」タブの行ラベル */
+/** 項目一覧「チケット売上」タブの行ラベル（特典・貸切VIPは当日販売数を表示） */
 export const TICKET_SECTION_LABELS: readonly string[] = [
   ...EXCEL_TICKET_LABELS,
   ...TICKET_SUPPLEMENT_LABELS,

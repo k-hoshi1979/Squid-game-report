@@ -37,8 +37,8 @@ export function extractNumericValuesFromContent(content: string): number[] {
 
   return [
     ...row.ticketCounts,
-    tokuten?.todayRemaining ?? 0,
-    vip?.todayTotal ?? 0,
+    tokuten?.salesCount ?? 0,
+    vip?.salesCount ?? 0,
     ...retailAppend,
     jersey.normalCount,
     jersey.snsCount,
