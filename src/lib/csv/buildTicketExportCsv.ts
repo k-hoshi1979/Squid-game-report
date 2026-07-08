@@ -41,15 +41,15 @@ function buildTicketCounts(
   return counts;
 }
 
-/** 実績管理表 B 列へ貼り付け用（売止末尾→特典→貸切VIP） */
+/** 実績管理表 B 列へ貼り付け用（売止末尾→特典→貸切VIP。後者2つは当日販売数） */
 function buildTicketExportValues(
   data: ReportData | null,
   csvCounts: number[],
 ): number[] {
   return [
     ...csvCounts,
-    data?.tokuten?.todayRemaining ?? 0,
-    data?.kashikiriVip?.todayTotal ?? 0,
+    data?.tokuten?.salesCount ?? 0,
+    data?.kashikiriVip?.salesCount ?? 0,
   ];
 }
 
