@@ -104,9 +104,9 @@ function splitAppendValues(appendValues: number[]) {
 export interface TicketExportRow {
   date: string;
   reporter: string;
-  /** CSV 券種マッピング用（80+売止19） */
+  /** CSV 券種マッピング用（82+売止19） */
   ticketCounts: number[];
-  /** 実績管理表 B 列貼り付け用（99券種＋特典・貸切VIP） */
+  /** 実績管理表 B 列貼り付け用（101券種＋特典・貸切VIP） */
   ticketExportValues: number[];
   appendValues: number[];
 }

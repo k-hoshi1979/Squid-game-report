@@ -1,4 +1,4 @@
-/** 実績管理表 May_ シート B21 起点の項目（Excel と同順・81項目） */
+/** 実績管理表 May_ シート B21 起点の項目（Excel と同順・82項目） */
 const TICKET_LABELS_B21_B100: readonly string[] = [
   "一般（１９歳以上）",
   "こども（１９歳未満）",
@@ -27,6 +27,7 @@ const TICKET_LABELS_B21_B100: readonly string[] = [
   "【500円割引】こども車いす",
   "【500円割引】ＶＩＰ一般車いす",
   "【500円割引】ＶＩＰこども車いす",
+  "限定プラン",
   "特別プラン",
   "IB　一般（１９歳以上）",
   "IB　こども（１９歳未満）",
@@ -92,7 +93,7 @@ export const URIDOME_TICKET_LABELS: readonly string[] = TICKET_LABELS_B21_B100.s
   19,
 ).map((label) => `売止　${label}`);
 
-/** チケット集計・項目一覧・CSV出力で使う全ラベル（81 + 売止19） */
+/** チケット集計・項目一覧・CSV出力で使う全ラベル（82 + 売止19） */
 export const EXCEL_TICKET_LABELS: readonly string[] = [
   ...TICKET_LABELS_B21_B100,
   ...URIDOME_TICKET_LABELS,

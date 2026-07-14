@@ -2,6 +2,7 @@
 export type TicketCategory =
   | "general"
   | "discount500"
+  | "limitedPlan"
   | "specialPlan"
   | "ib"
   | "discount500ib"
@@ -21,13 +22,14 @@ export interface TicketCategoryRange {
 export const TICKET_CATEGORY_RANGES: readonly TicketCategoryRange[] = [
   { id: "general",       start: 0,  end: 18 },
   { id: "discount500",   start: 19, end: 26 },
-  { id: "specialPlan",   start: 27, end: 27 },
-  { id: "ib",            start: 28, end: 46 },
-  { id: "discount500ib", start: 47, end: 54 },
-  { id: "inner",         start: 55, end: 62 },
-  { id: "dentsu",        start: 63, end: 71 },
-  { id: "nta",           start: 72, end: 80 },
-  { id: "uridome",       start: 81, end: 99 },
+  { id: "limitedPlan",   start: 27, end: 27 },
+  { id: "specialPlan",   start: 28, end: 28 },
+  { id: "ib",            start: 29, end: 47 },
+  { id: "discount500ib", start: 48, end: 55 },
+  { id: "inner",         start: 56, end: 63 },
+  { id: "dentsu",        start: 64, end: 72 },
+  { id: "nta",           start: 73, end: 81 },
+  { id: "uridome",       start: 82, end: 100 },
 ];
 
 export function categoryByIndex(index: number): TicketCategory | null {

@@ -24,6 +24,8 @@ for (const row of parsed.rows) {
 
 console.log("=== Key rows ===");
 for (const label of [
+  "限定プラン",
+  "特別プラン",
   "貸切",
   "アフター５（一般）",
   "アフター５（一般）車いす",
