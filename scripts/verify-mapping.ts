@@ -24,6 +24,8 @@ for (const row of parsed.rows) {
 
 console.log("=== Key rows ===");
 for (const label of [
+  "【ＬＵＵＰ】一般（１９歳以上）",
+  "【ＬＵＵＰ】IB　一般（１９歳以上）",
   "限定プラン",
   "特別プラン",
   "貸切",

@@ -6,6 +6,8 @@ const RECEPTION_RULES: { pattern: RegExp; category: TicketCategory | "skip" }[] 
   { pattern: /売止/, category: "uridome" },
   { pattern: /５００円割引ＩＢ|500.*割引.*IB/i, category: "discount500ib" },
   { pattern: /５００円割引|500.*割引/i, category: "discount500" },
+  { pattern: /◎ＬＵＵＰ|◎.*LUUP/i, category: "luupIb" },
+  { pattern: /ＬＵＵＰ|LUUP/i, category: "luup" },
   { pattern: /インバウンド|inbound|in-bound/i, category: "ib" },
   { pattern: /インナー|inner/i, category: "inner" },
   { pattern: /電通|dentsu/i, category: "dentsu" },
@@ -56,10 +58,12 @@ const CATEGORY_LABEL_PREFIX: Record<
   string
 > = {
   discount500: "【500円割引】",
+  luup: "【ＬＵＵＰ】",
   limitedPlan: "",  // H列「限定プラン」がそのままラベル
   specialPlan: "",  // H列「特別プラン」がそのままラベル
   ib: "IB　",
   discount500ib: "【500円割引】IB　",
+  luupIb: "【ＬＵＵＰ】IB　",
   inner: "インナー　",
   dentsu: "電通　",
   nta: "日旅　",
