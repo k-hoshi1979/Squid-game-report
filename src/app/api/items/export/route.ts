@@ -1,18 +1,26 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
-  buildItemListExportCsv,
+  buildItemListNumericExportCsv,
+  buildItemListTextExportCsv,
   itemListExportFilename,
   parseItemListExportSections,
 } from "@/lib/report/buildItemListExportCsv";
+import type { ItemListExportCategory } from "@/lib/report/itemListSpec";
 import { monthDateRange } from "@/lib/report/extractItemValues";
 
 function isValidYearMonth(raw: string | null): raw is string {
   return Boolean(raw && /^\d{4}-\d{2}$/.test(raw));
 }
 
+function parseCategory(raw: string | null): ItemListExportCategory | null {
+  if (raw === "numeric" || raw === "text") return raw;
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   const month = request.nextUrl.searchParams.get("month");
+  const categoryParam = request.nextUrl.searchParams.get("category");
   const sectionsParam = request.nextUrl.searchParams.get("sections");
 
   if (!isValidYearMonth(month)) {
@@ -22,7 +30,15 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const sectionIds = parseItemListExportSections(sectionsParam);
+  const category = parseCategory(categoryParam);
+  if (!category) {
+    return NextResponse.json(
+      { error: "category（numeric または text）を指定してください" },
+      { status: 400 },
+    );
+  }
+
+  const sectionIds = parseItemListExportSections(sectionsParam, category);
   const { start, end } = monthDateRange(month);
 
   try {
@@ -45,8 +61,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const csv = buildItemListExportCsv(reports ?? [], month, sectionIds);
-    const filename = itemListExportFilename(month);
+    const csv =
+      category === "numeric"
+        ? buildItemListNumericExportCsv(reports ?? [], month, sectionIds)
+        : buildItemListTextExportCsv(reports ?? [], month, sectionIds);
+    const filename = itemListExportFilename(month, category);
 
     return new NextResponse(csv, {
       status: 200,

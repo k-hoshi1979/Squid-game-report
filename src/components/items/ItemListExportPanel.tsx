@@ -2,21 +2,31 @@
 
 import { useState } from "react";
 import {
-  ITEM_LIST_SECTIONS,
+  ITEM_LIST_NUMERIC_SECTIONS,
+  ITEM_LIST_TEXT_SECTIONS,
+  type ItemListExportCategory,
   type ItemListSectionId,
 } from "@/lib/report/itemListSpec";
 
-const DEFAULT_SECTION_IDS: ItemListSectionId[] = ITEM_LIST_SECTIONS.map(
-  (section) => section.id,
-);
-
-interface ItemListExportPanelProps {
+interface ExportCategoryPanelProps {
   yearMonth: string;
+  category: ItemListExportCategory;
+  title: string;
+  description: string;
+  sections: readonly { id: ItemListSectionId; tabLabel: string }[];
+  defaultSectionIds: ItemListSectionId[];
 }
 
-export function ItemListExportPanel({ yearMonth }: ItemListExportPanelProps) {
+function ExportCategoryPanel({
+  yearMonth,
+  category,
+  title,
+  description,
+  sections,
+  defaultSectionIds,
+}: ExportCategoryPanelProps) {
   const [selectedSections, setSelectedSections] =
-    useState<ItemListSectionId[]>(DEFAULT_SECTION_IDS);
+    useState<ItemListSectionId[]>(defaultSectionIds);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +50,7 @@ export function ItemListExportPanel({ yearMonth }: ItemListExportPanelProps) {
     try {
       const params = new URLSearchParams({
         month: yearMonth,
+        category,
         sections: selectedSections.join(","),
       });
       const res = await fetch(`/api/items/export?${params}`);
@@ -71,14 +82,12 @@ export function ItemListExportPanel({ yearMonth }: ItemListExportPanelProps) {
   };
 
   return (
-    <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 shadow-sm">
+    <div className="rounded-lg border border-[var(--border)] p-4 bg-[var(--background)]">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div>
-          <h2 className="text-sm font-bold text-[var(--foreground)]">
-            CSV 抽出
-          </h2>
+          <h3 className="text-sm font-bold text-[var(--foreground)]">{title}</h3>
           <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-            表示中の月（{yearMonth.replace("-", "年")}月）の項目一覧を、タブの並び順どおりに出力します。
+            {description}
           </p>
         </div>
         <button
@@ -96,7 +105,7 @@ export function ItemListExportPanel({ yearMonth }: ItemListExportPanelProps) {
           出力する項目
         </legend>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
-          {ITEM_LIST_SECTIONS.map((section) => {
+          {sections.map((section) => {
             const checked = selectedSections.includes(section.id);
             return (
               <label
@@ -119,9 +128,46 @@ export function ItemListExportPanel({ yearMonth }: ItemListExportPanelProps) {
       {error && (
         <p className="mt-3 text-xs text-red-600 dark:text-red-400">{error}</p>
       )}
+    </div>
+  );
+}
 
-      <p className="mt-3 text-xs text-[var(--muted-foreground)]">
-        ※ 数値項目は「項目・月間合計・日付列」、テキスト項目は「日付・内容」の形式で出力します（UTF-8 BOM 付き）。
+interface ItemListExportPanelProps {
+  yearMonth: string;
+}
+
+export function ItemListExportPanel({ yearMonth }: ItemListExportPanelProps) {
+  const monthLabel = yearMonth.replace("-", "年") + "月";
+
+  return (
+    <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 shadow-sm space-y-4">
+      <div>
+        <h2 className="text-sm font-bold text-[var(--foreground)]">CSV 抽出</h2>
+        <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+          表示中の月（{monthLabel}）の項目一覧を出力します。
+        </p>
+      </div>
+
+      <ExportCategoryPanel
+        yearMonth={yearMonth}
+        category="numeric"
+        title="数値データ"
+        description="リテール売上〜SNS投稿。項目を縦軸、月間合計と日付を横軸に出力します。"
+        sections={ITEM_LIST_NUMERIC_SECTIONS}
+        defaultSectionIds={ITEM_LIST_NUMERIC_SECTIONS.map((section) => section.id)}
+      />
+
+      <ExportCategoryPanel
+        yearMonth={yearMonth}
+        category="text"
+        title="テキストデータ"
+        description="運営所感・イレギュラー対応・落とし物取得。日付を縦軸、選択した項目を横軸に出力します。"
+        sections={ITEM_LIST_TEXT_SECTIONS}
+        defaultSectionIds={ITEM_LIST_TEXT_SECTIONS.map((section) => section.id)}
+      />
+
+      <p className="text-xs text-[var(--muted-foreground)]">
+        ※ UTF-8 BOM 付きのため Excel で文字化けしません。
       </p>
     </div>
   );

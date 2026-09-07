@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import {
   ITEM_LIST_SECTIONS,
   getSectionById,
+  sumTicketValuesAcrossDays,
+  sumTicketValuesForDate,
   type ItemListSectionId,
 } from "@/lib/report/itemListSpec";
 import {
@@ -40,14 +42,6 @@ function sumAcrossDays(
     if (value !== undefined) sum += value;
   }
   return sum;
-}
-
-function formatPeriodTotal(
-  days: string[],
-  valuesByDate: Record<string, number[]>,
-  valueIndex: number,
-): string {
-  return formatCell(sumAcrossDays(days, valuesByDate, valueIndex));
 }
 
 function buildItemsUrl(yearMonth: string, sectionId: ItemListSectionId): string {
@@ -105,7 +99,7 @@ export function ItemListTable({
         <p className="text-xs text-[var(--muted-foreground)]">
           {section.kind === "numeric"
             ? sectionId === "ticket"
-              ? "項目を縦軸、月間合計と日付（昇順）を横軸に表示しています。特典・貸切VIPは当日販売数（出数）です。"
+              ? "項目を縦軸、月間合計と日付（昇順）を横軸に表示しています。先頭のチケット合計は全券種の日次合算です。特典・貸切VIPは当日販売数（出数）です。"
               : "項目を縦軸、月間合計と日付（昇順）を横軸に表示しています。"
             : "日付（昇順）ごとにテキストを表示しています。"}
         </p>
@@ -157,6 +151,36 @@ export function ItemListTable({
   );
 }
 
+function resolveNumericCellValue(
+  sectionId: ItemListSectionId,
+  labelIndex: number,
+  date: string | null,
+  days: string[],
+  valuesByDate: Record<string, number[]>,
+): number | undefined {
+  if (sectionId === "ticket" && labelIndex === 0) {
+    if (date) {
+      const values = valuesByDate[date];
+      return values ? sumTicketValuesForDate(values) : undefined;
+    }
+    return sumTicketValuesAcrossDays(days, valuesByDate);
+  }
+
+  const section = getSectionById(sectionId);
+  const valueIndex =
+    sectionId === "ticket"
+      ? labelIndex - 1
+      : sectionId === "sns"
+        ? labelIndex
+        : section.rowOffset + labelIndex;
+
+  if (date) {
+    return valuesByDate[date]?.[valueIndex];
+  }
+
+  return sumAcrossDays(days, valuesByDate, valueIndex);
+}
+
 function NumericSectionTable({
   section,
   days,
@@ -191,21 +215,40 @@ function NumericSectionTable({
         <tbody>
           {section.labels.map((label, labelIndex) => {
             const valueIndex =
-              section.id === "sns" ? labelIndex : section.rowOffset + labelIndex;
+              section.id === "ticket" && labelIndex === 0
+                ? "total"
+                : section.id === "sns"
+                  ? labelIndex
+                  : section.id === "ticket"
+                    ? labelIndex - 1
+                    : section.rowOffset + labelIndex;
             return (
               <tr
-                key={`${section.id}-${valueIndex}`}
+                key={`${section.id}-${String(valueIndex)}`}
                 className="border-b border-[var(--border)]/60 hover:bg-[var(--muted)]/40"
               >
                 <td className="sticky left-0 z-10 bg-[var(--card)] px-3 py-1.5 text-xs text-[var(--foreground)] border-r border-[var(--border)] max-w-[20rem]">
                   {label}
                 </td>
                 <td className="sticky left-[12rem] z-10 bg-[var(--card)] px-2 py-1.5 text-right tabular-nums text-xs font-semibold text-[var(--primary)] border-r border-[var(--border)]">
-                  {formatPeriodTotal(days, valuesByDate, valueIndex)}
+                  {formatCell(
+                    resolveNumericCellValue(
+                      sectionId,
+                      labelIndex,
+                      null,
+                      days,
+                      valuesByDate,
+                    ),
+                  )}
                 </td>
                 {days.map((date) => {
-                  const values = valuesByDate[date];
-                  const value = values?.[valueIndex];
+                  const value = resolveNumericCellValue(
+                    sectionId,
+                    labelIndex,
+                    date,
+                    days,
+                    valuesByDate,
+                  );
                   return (
                     <td
                       key={date}

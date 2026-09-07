@@ -1,6 +1,12 @@
 import {
-  ITEM_LIST_SECTIONS,
+  ITEM_LIST_NUMERIC_SECTIONS,
+  ITEM_LIST_TEXT_SECTIONS,
+  ITEM_LIST_NUMERIC_SECTION_IDS,
+  ITEM_LIST_TEXT_SECTION_IDS,
   getSectionById,
+  sumTicketValuesAcrossDays,
+  sumTicketValuesForDate,
+  type ItemListExportCategory,
   type ItemListSectionId,
 } from "@/lib/report/itemListSpec";
 import {
@@ -40,28 +46,52 @@ function formatCellValue(value: number | undefined): string {
   return String(value);
 }
 
-function parseSectionIds(raw: string | null): ItemListSectionId[] {
+function parseSectionIds(
+  raw: string | null,
+  allowedIds: readonly ItemListSectionId[],
+): ItemListSectionId[] {
+  const allowed = new Set<ItemListSectionId>(allowedIds);
+
   if (!raw?.trim()) {
-    return ITEM_LIST_SECTIONS.map((s) => s.id);
+    return [...allowedIds];
   }
 
-  const allowed = new Set<ItemListSectionId>(
-    ITEM_LIST_SECTIONS.map((s) => s.id),
-  );
   const ids = raw
     .split(",")
     .map((s) => s.trim())
     .filter((s): s is ItemListSectionId => allowed.has(s as ItemListSectionId));
 
-  return ids.length > 0 ? ids : ITEM_LIST_SECTIONS.map((s) => s.id);
+  return ids.length > 0 ? ids : [...allowedIds];
 }
 
-function textKeyForSection(
+function resolveNumericValue(
   sectionId: ItemListSectionId,
-): keyof ItemListTextFields {
-  if (sectionId === "operation") return "operationNotes";
-  if (sectionId === "irregular") return "irregularReport";
-  return "lostAndFound";
+  labelIndex: number,
+  date: string | null,
+  days: string[],
+  valuesByDate: Record<string, number[]>,
+  snsByDate: Record<string, number[]>,
+): number {
+  if (sectionId === "ticket" && labelIndex === 0) {
+    return date
+      ? sumTicketValuesForDate(valuesByDate[date])
+      : sumTicketValuesAcrossDays(days, valuesByDate);
+  }
+
+  const section = getSectionById(sectionId);
+  const source = sectionId === "sns" ? snsByDate : valuesByDate;
+  const valueIndex =
+    sectionId === "ticket"
+      ? labelIndex - 1
+      : sectionId === "sns"
+        ? labelIndex
+        : section.rowOffset + labelIndex;
+
+  if (date) {
+    return source[date]?.[valueIndex] ?? 0;
+  }
+
+  return sumAcrossDays(days, source, valueIndex);
 }
 
 function buildNumericSectionLines(
@@ -71,7 +101,6 @@ function buildNumericSectionLines(
   snsByDate: Record<string, number[]>,
 ): string[] {
   const section = getSectionById(sectionId);
-  const source = sectionId === "sns" ? snsByDate : valuesByDate;
   const header = [
     "項目",
     "月間合計",
@@ -84,12 +113,28 @@ function buildNumericSectionLines(
   ];
 
   for (let labelIndex = 0; labelIndex < section.labels.length; labelIndex++) {
-    const valueIndex =
-      sectionId === "sns" ? labelIndex : section.rowOffset + labelIndex;
     const row = [
       section.labels[labelIndex],
-      sumAcrossDays(days, source, valueIndex),
-      ...days.map((date) => formatCellValue(source[date]?.[valueIndex])),
+      resolveNumericValue(
+        sectionId,
+        labelIndex,
+        null,
+        days,
+        valuesByDate,
+        snsByDate,
+      ),
+      ...days.map((date) =>
+        formatCellValue(
+          resolveNumericValue(
+            sectionId,
+            labelIndex,
+            date,
+            days,
+            valuesByDate,
+            snsByDate,
+          ),
+        ),
+      ),
     ];
     lines.push(row.map(escapeCsv).join(","));
   }
@@ -97,31 +142,16 @@ function buildNumericSectionLines(
   return lines;
 }
 
-function buildTextSectionLines(
+function textKeyForSection(
   sectionId: ItemListSectionId,
-  days: string[],
-  textByDate: Record<string, ItemListTextFields>,
-): string[] {
-  const section = getSectionById(sectionId);
-  const textKey = textKeyForSection(sectionId);
-  const lines = [
-    escapeCsv(section.tabLabel),
-    [escapeCsv("日付"), escapeCsv("内容")].join(","),
-  ];
-
-  for (const date of days) {
-    const fields = textByDate[date];
-    const text = fields?.[textKey] ?? "";
-    lines.push(
-      [escapeCsv(formatDateLabel(date)), escapeCsv(text)].join(","),
-    );
-  }
-
-  return lines;
+): keyof ItemListTextFields {
+  if (sectionId === "operation") return "operationNotes";
+  if (sectionId === "irregular") return "irregularReport";
+  return "lostAndFound";
 }
 
-/** 項目一覧の表示順どおりに、選択セクションの月次 CSV を生成する */
-export function buildItemListExportCsv(
+/** 数値項目（リテール売上〜SNS投稿）の月次 CSV */
+export function buildItemListNumericExportCsv(
   reports: Pick<DailyReport, "report_date" | "content">[],
   yearMonth: string,
   sectionIds: ItemListSectionId[],
@@ -129,39 +159,74 @@ export function buildItemListExportCsv(
   const { days } = monthDateRange(yearMonth);
   const valuesByDate = buildValuesByDate(reports);
   const snsByDate = buildSnsByDate(reports);
-  const textByDate = buildTextByDate(reports);
 
-  const orderedSections = ITEM_LIST_SECTIONS.filter((section) =>
+  const orderedSections = ITEM_LIST_NUMERIC_SECTIONS.filter((section) =>
     sectionIds.includes(section.id),
   );
 
-  const blocks: string[][] = [];
-
-  for (const section of orderedSections) {
-    if (section.kind === "numeric") {
-      blocks.push(
-        buildNumericSectionLines(
-          section.id,
-          days,
-          valuesByDate,
-          snsByDate,
-        ),
-      );
-    } else {
-      blocks.push(buildTextSectionLines(section.id, days, textByDate));
-    }
-  }
+  const blocks = orderedSections.map((section) =>
+    buildNumericSectionLines(
+      section.id,
+      days,
+      valuesByDate,
+      snsByDate,
+    ),
+  );
 
   return "\uFEFF" + blocks.map((lines) => lines.join("\r\n")).join("\r\n\r\n");
 }
 
-export function parseItemListExportSections(
-  raw: string | null,
-): ItemListSectionId[] {
-  return parseSectionIds(raw);
+/** テキスト項目（運営所感・イレギュラー・落とし物）の月次 CSV（日付×項目） */
+export function buildItemListTextExportCsv(
+  reports: Pick<DailyReport, "report_date" | "content">[],
+  yearMonth: string,
+  sectionIds: ItemListSectionId[],
+): string {
+  const { days } = monthDateRange(yearMonth);
+  const textByDate = buildTextByDate(reports);
+
+  const orderedSections = ITEM_LIST_TEXT_SECTIONS.filter((section) =>
+    sectionIds.includes(section.id),
+  );
+
+  const header = [
+    "日付",
+    ...orderedSections.map((section) => section.tabLabel),
+  ];
+
+  const lines = [header.map(escapeCsv).join(",")];
+
+  for (const date of days) {
+    const fields = textByDate[date];
+    const row = [
+      formatDateLabel(date),
+      ...orderedSections.map((section) => {
+        const textKey = textKeyForSection(section.id);
+        return fields?.[textKey] ?? "";
+      }),
+    ];
+    lines.push(row.map(escapeCsv).join(","));
+  }
+
+  return "\uFEFF" + lines.join("\r\n");
 }
 
-export function itemListExportFilename(yearMonth: string): string {
+export function parseItemListExportSections(
+  raw: string | null,
+  category: ItemListExportCategory,
+): ItemListSectionId[] {
+  const allowedIds =
+    category === "numeric"
+      ? ITEM_LIST_NUMERIC_SECTION_IDS
+      : ITEM_LIST_TEXT_SECTION_IDS;
+  return parseSectionIds(raw, allowedIds);
+}
+
+export function itemListExportFilename(
+  yearMonth: string,
+  category: ItemListExportCategory,
+): string {
   const [y, m] = yearMonth.split("-");
-  return `項目一覧_${y}年${m}月.csv`;
+  const suffix = category === "numeric" ? "数値" : "テキスト";
+  return `項目一覧_${suffix}_${y}年${m}月.csv`;
 }

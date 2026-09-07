@@ -64,6 +64,16 @@ export const TICKET_SECTION_LABELS: readonly string[] = [
   ...TICKET_SUPPLEMENT_LABELS,
 ];
 
+export const TICKET_TOTAL_LABEL = "チケット合計" as const;
+
+/** 項目一覧「チケット売上」表示用（先頭に日次合算のチケット合計） */
+export const TICKET_DISPLAY_LABELS: readonly string[] = [
+  TICKET_TOTAL_LABEL,
+  ...TICKET_SECTION_LABELS,
+];
+
+export const TICKET_ITEM_COUNT = TICKET_SECTION_LABELS.length;
+
 const TICKET_OFFSET = 0;
 const RETAIL_OFFSET = TICKET_SECTION_LABELS.length;
 const JERSEY_OFFSET = RETAIL_OFFSET + RETAIL_LABELS.length;
@@ -90,7 +100,7 @@ export const ITEM_LIST_SECTIONS: readonly ItemListSection[] = [
     id: "ticket",
     tabLabel: "チケット売上",
     kind: "numeric",
-    labels: TICKET_SECTION_LABELS,
+    labels: TICKET_DISPLAY_LABELS,
     rowOffset: TICKET_OFFSET,
   },
   {
@@ -138,6 +148,45 @@ export const ITEM_LIST_SECTIONS: readonly ItemListSection[] = [
 ];
 
 export const DEFAULT_ITEM_LIST_SECTION: ItemListSectionId = "retail";
+
+export type ItemListExportCategory = "numeric" | "text";
+
+export const ITEM_LIST_NUMERIC_SECTIONS = ITEM_LIST_SECTIONS.filter(
+  (section) => section.kind === "numeric",
+);
+
+export const ITEM_LIST_TEXT_SECTIONS = ITEM_LIST_SECTIONS.filter(
+  (section) => section.kind === "text",
+);
+
+export const ITEM_LIST_NUMERIC_SECTION_IDS = ITEM_LIST_NUMERIC_SECTIONS.map(
+  (section) => section.id,
+);
+
+export const ITEM_LIST_TEXT_SECTION_IDS = ITEM_LIST_TEXT_SECTIONS.map(
+  (section) => section.id,
+);
+
+/** 日付ごとの全チケット券種合計（チケット合計行用） */
+export function sumTicketValuesForDate(values: number[] | undefined): number {
+  if (!values) return 0;
+  let sum = 0;
+  for (let i = 0; i < TICKET_ITEM_COUNT; i++) {
+    sum += values[i] ?? 0;
+  }
+  return sum;
+}
+
+export function sumTicketValuesAcrossDays(
+  days: readonly string[],
+  valuesByDate: Record<string, number[]>,
+): number {
+  let sum = 0;
+  for (const date of days) {
+    sum += sumTicketValuesForDate(valuesByDate[date]);
+  }
+  return sum;
+}
 
 export const NUMERIC_ROW_COUNT =
   POLICY_MEASURES_OFFSET + POLICY_MEASURES_LABELS.length;
