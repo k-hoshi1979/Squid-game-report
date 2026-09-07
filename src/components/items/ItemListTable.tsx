@@ -11,6 +11,7 @@ import {
   formatDayHeader,
   type ItemListTextFields,
 } from "@/lib/report/extractItemValues";
+import { ItemListExportPanel } from "@/components/items/ItemListExportPanel";
 
 interface ItemListTableProps {
   yearMonth: string;
@@ -77,6 +78,8 @@ export function ItemListTable({
 
   return (
     <div className="space-y-4">
+      <ItemListExportPanel yearMonth={yearMonth} />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
